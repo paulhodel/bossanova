@@ -1,0 +1,27 @@
+{
+    "name" : "bossanova/bossanova",
+    "description" : "Bossanova PHP Framework",
+    "keywords" : [
+        "framework",
+        "php",
+        "bossanova"
+    ],
+    "homepage" : "https://github.com/paulhodel/bossanova",
+    "license" : "MIT",
+    "type" : "project",
+    "authors" : [{
+            "name" : "Paul Hodel",
+            "email" : "paul.hodel@gmail.com"
+        }
+    ],
+   "autoload": {
+        "files" : [
+            "autoload.php"
+        ],
+        "psr-4": {
+            "bossanova\\": "src/"
+        }
+    },
+    "autoload-dev" : {
+    }
+}

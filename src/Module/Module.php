@@ -18,10 +18,11 @@ use bossanova\Render\Render;
 use bossanova\Database\Database;
 use bossanova\Mail\Mail;
 use bossanova\Common\Post;
+use bossanova\Common\Request;
 
 class Module
 {
-    use Post;
+    use Post, Request;
 
     /**
      * Global authentication instance

@@ -197,7 +197,7 @@ class Database
                 $data = array();
 
                 foreach ($val as $k => $v) {
-                    if (trim($v) === "") {
+                    if (trim($v) === "" || trim($v) === "null") {
                         $data[$k] = "null";
                     } else {
                         if (strtoupper($v) == 'NOW()') {
@@ -214,7 +214,7 @@ class Database
                 // Final array with complete data
                 $val = $data;
             }
-        } elseif (trim($val) === "") {
+        } elseif (trim($val) === "" || trim($val) === "null") {
             $val = "null";
         } elseif (strtoupper(trim($val)) == 'NOW()') {
             $val = "NOW()";

@@ -119,15 +119,6 @@ class Render
             // Explode route based the URL
             self::$urlParam = explode("/", $this->escape($requestUri[0]));
 
-            // Route id flexibility
-            if (isset(self::$urlParam[2]) && is_numeric(self::$urlParam[1])) {
-                if (! (int)self::$urlParam[2] > 0) {
-                    $id = self::$urlParam[1];
-                    self::$urlParam[1] = self::$urlParam[2];
-                    self::$urlParam[2] = $id;
-                }
-            }
-
             // Check if last item is empty
             $index = count(self::$urlParam) - 1;
 
@@ -140,17 +131,6 @@ class Render
             if (file_exists("modules/Index/Index.php") || file_exists("modules/Index/Index.class.php")) {
                 self::$urlParam = [];
                 self::$urlParam[0] = 'index';
-            }
-        }
-
-        // Restriction aliases
-        if (isset($GLOBALS['restriction'])) {
-            foreach ($GLOBALS['restriction'] as $k => $v) {
-                $k = strtolower($k);
-                $k = str_replace('-', '_', $k);
-                $GLOBALS['restriction'][$k] = $v;
-                $k = str_replace('_', '-', $k);
-                $GLOBALS['restriction'][$k] = $v;
             }
         }
 
@@ -315,6 +295,9 @@ class Render
         // Loading module
         $module_name = ucfirst(strtolower(self::$configuration['module_name']));
 
+        // Default method name
+        $method_name = "__default";
+
         try {
             if (self::$configuration['module_controller']) {
                 $controller_name = ucfirst(strtolower(self::$configuration['module_controller']));
@@ -322,24 +305,13 @@ class Render
                 if (! isset(self::$classInstance[$name])) {
                     self::$classInstance[$name] = new $name();
                 }
-
-                // Default method name
-                $method_name = "__default";
-
                 // Other method name
-                if (isset(self::$urlParam[2])) {
-                    if (isset(self::$urlParam[3]) && is_numeric(self::$urlParam[2])) {
-                        $m = str_replace('-', '_', self::$urlParam[3]);
-                        if (method_exists(self::$classInstance[$name], $m)) {
-                            $method_name = $m;
-                        }
-                    } else {
+                if (isset(self::$urlParam[2]) && self::$urlParam[2]) {
                         $m = str_replace('-', '_', self::$urlParam[2]);
                         if (method_exists(self::$classInstance[$name], $m)) {
                             $method_name = $m;
                         }
                     }
-                }
             } else {
                 // Creating an instance of the module that matches this call
                 $name = "\\modules\\$module_name\\$module_name";
@@ -347,11 +319,8 @@ class Render
                     self::$classInstance[$name] = new $name();
                 }
 
-                // Default method name
-                $method_name = "__default";
-
                 // Other method name
-                if (isset(self::$urlParam[1])) {
+                if (isset(self::$urlParam[1]) && self::$urlParam[1]) {
                     $m = str_replace('-', '_', self::$urlParam[1]);
                     if (method_exists(self::$classInstance[$name], $m)) {
                         $method_name = $m;
@@ -500,7 +469,7 @@ class Render
     private function route()
     {
         // Current URL request
-        $route = implode('/', self::$urlParam);
+        $route = str_replace('-', '_', implode('/', self::$urlParam));
 
         // Available routes
         $routes = [];
@@ -508,7 +477,7 @@ class Render
         // Global config.inc.php definitions
         if (isset($GLOBALS['route'])) {
             foreach ($GLOBALS['route'] as $k => $v) {
-                $routes[strtolower($k)] = $v;
+                $routes[strtolower(str_replace('-', '_', $k))] = $v;
             }
         }
 
@@ -530,7 +499,7 @@ class Render
                     ->execute();
 
                 while ($row = self::$database->fetch_assoc($result)) {
-                    $routes[$row['route']] = $row;
+                    $routes[strtolower(str_replace('-', '_', $k))] = $row;
                 }
             }
         }
@@ -549,28 +518,23 @@ class Render
                     $url = '';
                     foreach (self::$urlParam as $k => $v) {
                         // Loading configuration
-                        $r = 'template_recursive';
-                        if (isset($routes[$url]) && isset($routes[$url][$r]) && $routes[$url][$r] == 1) {
-                            if (! self::$configuration[$r] || (self::$configuration[$r] && $routes[$url][$r])) {
-                                // Configuration for this URL
-                                $config = $routes[$url];
-                                // Set the configuration
-                                $this->setConfiguration($config);
-                            }
+                        if (isset($routes[$url])) {
+                            // Set the configuration
+                            $this->setConfiguration($routes[$url]);
                         }
 
                         if ($url) {
                             $url .= '/';
                         }
 
-                        $url .= $v;
+                        $url .= str_replace('-', '_', $v);
                     }
                 }
             }
         }
 
         // Find persistent elements
-        $persistentElem = isset($GLOBALS['persistent_elements']['']) ? $GLOBALS['persistent_elements'][''] : array();
+        $persistentElem = isset($GLOBALS['persistent_elements']['']) ? $GLOBALS['persistent_elements'][''] : [];
         // Could not find any global configuration, search for any parent URL the is recursive
 
         if (count(self::$urlParam)) {
@@ -639,10 +603,8 @@ class Render
                 }
 
                 // View information
-                if (count(self::$urlParam) <= 3) {
-                    if (isset(self::$urlParam[2]) && ! is_numeric(self::$urlParam[2])) {
-                        $view_name = self::$urlParam[2];
-                    } else if (isset(self::$urlParam[1]) && ! is_numeric(self::$urlParam[1])) {
+                if (count(self::$urlParam) <= 2) {
+                    if (isset(self::$urlParam[1]) && ! is_numeric(self::$urlParam[1])) {
                         $view_name = self::$urlParam[1];
                     } else if (isset(self::$urlParam[0])) {
                         $view_name = self::$urlParam[0];
@@ -657,11 +619,6 @@ class Render
             } else {
                 // Default for page not found
                 self::$notFound = 1;
-            }
-        } else {
-            // Index module?
-            if (file_exists("modules/Index/Index.php") || file_exists("modules/Index/Index.class.php")) {
-                self::$configuration['module_name'] = 'Index';
             }
         }
     }
@@ -858,7 +815,11 @@ class Render
     public static function isRestricted(array $urlRoute = null)
     {
         // Get restriction defined in the config.inc.php
-        $restriction = $GLOBALS['restriction'];
+        $restriction = [];
+
+        foreach ($GLOBALS['restriction'] AS $k => $v) {
+            $restriction[strtolower(str_replace('-', '_', $k))] = $v;
+        }
 
         // Route he trying to access
         $access_route = (isset($urlRoute)) ? $urlRoute : self::$urlParam;
@@ -868,30 +829,24 @@ class Render
             $route = '';
 
             foreach ($access_route as $k => $v) {
-                // Lower
-                $v = strtolower($v);
-
                 // Check all route possibilities
                 if ($route) {
                     $route .= '/';
                 }
-                $route .= str_replace('-', '_', $v);
+                $route .= strtolower(str_replace('-', '_', $v));
 
                 // Restriction exists for this route
                 if (isset($restriction[$route])) {
                     $restricted = $route;
                 }
-
-                // Allowed by main configuration
-                if (isset($restriction[$route]['permission']) && $restriction[$route]['permission'] == 1) {
-                    unset($restricted);
-                }
             }
 
             // Always allow login/logout method
-            $param = $access_route[count($access_route) - 1];
-            if ($param == 'login' || $param == 'logout') {
-                unset($restricted);
+            if (count($access_route) < 3) {
+                $param = $access_route[count($access_route) - 1];
+                if ($param == 'login' || $param == 'logout') {
+                    unset($restricted);
+                }
             }
         } else {
             if (isset($restriction[''])) {
@@ -905,16 +860,9 @@ class Render
             if (isset($_SESSION['permission'])) {
                 // Check if the user has access to the module
                 $key = $restricted;
+
                 if (isset($_SESSION['permission'][$key])) {
                     unset($restricted);
-                }
-
-                // Check if the user has access to a parent function, if defined
-                else if (isset($restriction[$restricted]['parent'])) {
-                    $key = $restriction[$restricted]['parent'];
-                    if (isset($_SESSION['permission'][$key])) {
-                        unset($restricted);
-                    }
                 }
             }
         }

@@ -671,7 +671,8 @@ class Render
         $html = file_get_contents("public/templates/{$template_path}");
 
         // Defining baseurl for a correct template images, styling, javascript reference
-        $url = $_SERVER["HTTP_HOST"] . substr($_SERVER["SCRIPT_NAME"], 0, strrpos($_SERVER["SCRIPT_NAME"], "/"));
+        $url = defined('BOSSANOVA_BASEURL') ? BOSSANOVA_BASEURL : substr($_SERVER["SCRIPT_NAME"], 0, strrpos($_SERVER["SCRIPT_NAME"], "/"));
+        $url = $_SERVER["HTTP_HOST"] . $url;
         $baseurl = explode('/', $template_path);
         array_pop($baseurl);
         $baseurl = implode('/', $baseurl);

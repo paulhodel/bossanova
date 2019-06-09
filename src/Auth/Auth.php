@@ -462,6 +462,8 @@ class Auth
 
                     $data = [
                         'success' => 1,
+                        'action' => 'resetPassword',
+                        'hash' => $user->user_hash,
                         'url' => $url
                     ];
                 }
@@ -610,26 +612,39 @@ class Auth
         if (isset($row['user_id'])) {
             // Action depends on the current user status
             if ($row['user_status'] == 2) {
+                // Update hash
+                $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
+                $user->save();
                 // User activation
                 $data = [
                     'success' => 1,
                     'message' => '^^[This is your first access and need to choose a new password]^^',
                     'action' => 'resetPassword',
+                    'hash' => $user->user_hash,
                 ];
             } else if ($row['user_status'] == 3) {
+                // Update hash
+                $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
+                $user->save();
                 // User password is expired
                 $data = [
                     'success' => 1,
                     'message' => '^^[Your password has expired. For security reasons, please choose a new password]^^',
                     'action' => 'resetPassword',
+                    'hash' => $user->user_hash,
                 ];
             } else if ($row['user_status'] == 1) {
                 // This block handle password recovery
                 if ($row['user_recovery'] == 1) {
+                    // Update hash
+                    $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
+                    $user->save();
+                    // Change password
                     $data = [
                         'success' => 1,
                         'message' => '^^[Please choose a new password]^^',
                         'action' => 'resetPassword',
+                        'hash' => $user->user_hash,
                     ];
                 } else if ($row['user_recovery'] == 2) {
                     // Special forced authentication by hash

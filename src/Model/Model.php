@@ -283,11 +283,7 @@ class Model extends \stdClass
             ->update()
             ->execute();
 
-        if ($this->database->error) {
-            $this->setError($this->database->error);
-        }
-
-        return (! $this->database->error) ? true : false;
+        return $this->hasSuccess();
     }
 
     /**
@@ -343,6 +339,16 @@ class Model extends \stdClass
             ->delete()
             ->execute();
 
+        return $this->hasSuccess();
+    }
+
+    /**
+     * Successfully executed
+     *
+     * @return boolean
+     */
+    public function hasSuccess()
+    {
         if ($this->database->error) {
             $this->setError($this->database->error);
         }

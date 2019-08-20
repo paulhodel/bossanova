@@ -415,7 +415,7 @@ class Auth
             $password = hash('sha512', $password . $row['user_salt']);
 
             // Check to see if password matches
-            if ($password == $row['user_password']) {
+            if ($password == $row['user_password'] && ($row['user_login'] == $username || $row['user_email'] == $username)) {
                 // User active
                 if ($row['user_status'] == 1) {
                     // Keep session alive by the use of cookies
@@ -502,12 +502,7 @@ class Auth
             ];
         } else {
             // Check the user status
-            if (! $row['user_status']) {
-                $data = [
-                    'error' => 1,
-                    'message' => "^^[User not found]^^", // User disabled
-                ];
-            } else {
+            if ($row['user_status'] > 0 && ($row['user_login'] == $username || $row['user_email'] == $username)) {
                 // Code
                 $row['recover_id'] = substr(uniqid(mt_rand(), true), 0, 6);
 
@@ -589,6 +584,11 @@ class Auth
 
                 // Destroy any existing cookie
                 $this->destroySession();
+            } else {
+                $data = [
+                    'error' => 1,
+                    'message' => "^^[User not found]^^", // User disabled
+                ];
             }
         }
 
@@ -601,95 +601,95 @@ class Auth
      */
     private function loginHash($hash)
     {
-        // Module
-        $module = Render::$urlParam[0];
+        $hash = preg_replace("/[^a-zA-Z0-9]/", "", $hash);
 
-        // Load user information
-        $user = new \models\Users();
-        $row = $user->getUserByHash($hash);
+        if ($hash && strlen($hash) == 128) {
+            // Module
+            $module = Render::$urlParam[0];
 
-        // Hash found
-        if (isset($row['user_id'])) {
-            // Action depends on the current user status
-            if ($row['user_status'] == 2) {
-                // Update hash
-                $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
-                $user->save();
-                // User activation
-                $data = [
-                    'success' => 1,
-                    'message' => '^^[This is your first access and need to choose a new password]^^',
-                    'action' => 'resetPassword',
-                    'hash' => $user->user_hash,
-                ];
-            } else if ($row['user_status'] == 3) {
-                // Update hash
-                $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
-                $user->save();
-                // User password is expired
-                $data = [
-                    'success' => 1,
-                    'message' => '^^[Your password has expired. For security reasons, please choose a new password]^^',
-                    'action' => 'resetPassword',
-                    'hash' => $user->user_hash,
-                ];
-            } else if ($row['user_status'] == 1) {
-                // This block handle password recovery
-                if ($row['user_recovery'] == 1) {
-                    // Update hash
-                    $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
-                    $user->save();
-                    // Change password
+            // Load user information
+            $user = new \models\Users();
+            $row = $user->getUserByHash($hash);
+
+            // Hash found
+            if (isset($row['user_id']) && $row['user_hash'] == $hash) {
+                // Action depends on the current user status
+                if ($row['user_status'] == 2) {
+                    // User activation
                     $data = [
                         'success' => 1,
-                        'message' => '^^[Please choose a new password]^^',
+                        'message' => '^^[This is your first access and need to choose a new password]^^',
                         'action' => 'resetPassword',
-                        'hash' => $user->user_hash,
+                        'hash' => $hash,
                     ];
-                } else if ($row['user_recovery'] == 2) {
-                    // Special forced authentication by hash
-                    $this->authenticate($row, '^^[User authenticated from direct hash]^^', true);
-
-                    // Force login by hash for specific use
-                    $user->user_hash = '';
-                    $user->user_recovery = '';
-                    $user->user_recovery_date = '';
-                    $user->user_hash = $this->access_token;
-                    $user->save();
-
+                } else if ($row['user_status'] == 3) {
+                    // User password is expired
                     $data = [
                         'success' => 1,
-                        'message' => "^^[User authenticated]^^",
-                        'url' => Render::getLink($module),
-                        'token' => $this->access_token,
+                        'message' => '^^[Your password has expired. For security reasons, please choose a new password]^^',
+                        'action' => 'resetPassword',
+                        'hash' => $hash,
                     ];
+                } else if ($row['user_status'] == 1) {
+                    // This block handle password recovery
+                    if ($row['user_recovery'] == 1) {
+                        // TODO: Create contional :: link can't be older than one day
+                        $data = [
+                            'success' => 1,
+                            'message' => '^^[Please choose a new password]^^',
+                            'action' => 'resetPassword',
+                            'hash' => $hash,
+                        ];
+                    } else if ($row['user_recovery'] == 2) {
+                        // Special forced authentication by hash
+                        $this->authenticate($row, '^^[User authenticated from direct hash]^^', true);
+    
+                        // Force login by hash for specific use
+                        $user->user_hash = '';
+                        $user->user_recovery = '';
+                        $user->user_recovery_date = '';
+                        $user->user_hash = $this->access_token;
+                        $user->save();
+    
+                        $data = [
+                            'success' => 1,
+                            'message' => "^^[User authenticated]^^",
+                            'url' => Render::getLink($module),
+                            'token' => $this->access_token,
+                        ];
+                    } else {
+                        // No recovery process on going
+                        $data = [
+                            'error' => 1,
+                            'url' => Render::getLink($module . '/login'),
+                        ];
+                    }
                 } else {
-                    // No recovery process on going
+                    // No user active found
                     $data = [
                         'error' => 1,
                         'url' => Render::getLink($module . '/login'),
                     ];
                 }
             } else {
-                // No user active found
-                $data = [
-                    'error' => 1,
-                    'url' => Render::getLink($module . '/login'),
-                ];
+                // No user found
+                if (Render::isAjax()) {
+                    $data = [
+                        'error' => 1,
+                        'message' => '^^[Invalid code]^^',
+                    ];
+                } else {
+                    $data = [
+                        'error' => 1,
+                        'url' => Render::getLink($module . '/login'),
+                    ];
+                }
             }
         } else {
-            // No user found
-            if (Render::isAjax()) {
-                $data = [
-                    'error' => 1,
-                    'message' => '^^[Invalid code]^^',
-                ];
-            } else {
-                $data = [
-                    'error' => 1,
-                    'url' => Render::getLink($module . '/login'),
-                ];
-            }
+            $data = [
+                'error' => 1,
+                'message' => '^^[Invalid code]^^',
+            ];
         }
 
         return $data;
@@ -697,65 +697,74 @@ class Auth
 
     private function updatePassword($hash)
     {
-        // Module
-        $module = Render::$urlParam[0];
+        $hash = preg_replace("/[^a-zA-Z0-9]/", "", $hash);
 
-        // Load user information
-        $user = new \models\Users();
-        $row = $user->getUserByHash($hash);
+        if ($hash && strlen($hash) == 128) {
+            // Module
+            $module = Render::$urlParam[0];
 
-        // Hash found
-        if (isset($row['user_id'])) {
-            if (($row['user_status'] == 1 && $row['user_recovery'] > 0) ||
-                ($row['user_status'] == 2) ||
-                ($row['user_status'] == 3)) {
+            // Load user information
+            $user = new \models\Users();
+            $row = $user->getUserByHash($hash);
 
-                if (isset($_POST['password']) && $_POST['password']) {
-                    if (strlen($_POST['password']) < 5) {
-                        $data = [
-                            'error' => 1,
-                            'message' => "^^[The chossen password is too short]^^",
-                        ];
-                    } else {
-                        // Current password
-                        $password = hash('sha512', $_POST['password'] . $row['user_salt']);
+            // Hash found
+            if (isset($row['user_id']) && $row['user_hash'] == $hash) {
+                if (($row['user_status'] == 1 && $row['user_recovery'] > 0) ||
+                    ($row['user_status'] == 2) ||
+                    ($row['user_status'] == 3)) {
 
-                        // Check if was previouslyl used
-                        if ($password != $row['user_password']) {
-                            // Password recovery complete
-                            $this->authenticate($row, '^^[Password recovery completed]^^', true);
-
-                            // Update user password
-                            $salt = hash('sha512', uniqid(mt_rand(1, mt_getrandmax()), true));
-                            $pass = hash('sha512', $_POST['password'] . $salt);
-
-                            $user->user_salt = $salt;
-                            $user->user_password = $pass;
-                            $user->user_hash = '';
-                            $user->user_recovery = '';
-                            $user->user_recovery_date = '';
-                            $user->user_status = 1;
-                            $user->save();
-
-                            $data = [
-                                'success' => 1,
-                                'message' => "^^[Password updated]^^",
-                                'url' => Render::getLink($module),
-                                'token' => $this->access_token,
-                            ];
-                        } else {
+                    if (isset($_POST['password']) && $_POST['password']) {
+                        if (strlen($_POST['password']) < 5) {
                             $data = [
                                 'error' => 1,
-                                'message' => "^^[Please choose a new password that was not used previously]^^",
+                                'message' => "^^[The chossen password is too short]^^",
                             ];
+                        } else {
+                            // Current password
+                            $password = hash('sha512', $_POST['password'] . $row['user_salt']);
+
+                            // Check if was previouslyl used
+                            if ($password != $row['user_password']) {
+                                // Password recovery complete
+                                $this->authenticate($row, '^^[Password recovery completed]^^', true);
+
+                                // Update user password
+                                $salt = hash('sha512', uniqid(mt_rand(1, mt_getrandmax()), true));
+                                $pass = hash('sha512', $_POST['password'] . $salt);
+
+                                $user->user_salt = $salt;
+                                $user->user_password = $pass;
+                                $user->user_hash = '';
+                                $user->user_recovery = '';
+                                $user->user_recovery_date = '';
+                                $user->user_status = 1;
+                                $user->save();
+
+                                $data = [
+                                    'success' => 1,
+                                    'message' => "^^[Password updated]^^",
+                                    'url' => Render::getLink($module),
+                                    'token' => $this->access_token,
+                                ];
+                            } else {
+                                $data = [
+                                    'error' => 1,
+                                    'message' => "^^[Please choose a new password that was not used previously]^^",
+                                ];
+                            }
                         }
                     }
                 }
+            } else {
+                $data = [
+                    'error' => 1,
+                    'message' => "^^[Please try to reset your password again]^^",
+                ];
             }
         } else {
             $data = [
                 'error' => 1,
-                'message' => "^^[Please try to reset your password again]^^",
+                'message' => "^^[Invalid code]^^",
             ];
         }
 

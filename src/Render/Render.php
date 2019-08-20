@@ -127,8 +127,8 @@ class Render
                 unset(self::$urlParam[$index]);
             }
         } else {
-            // Index module?
-            if (file_exists("modules/Index/Index.php") || file_exists("modules/Index/Index.class.php")) {
+            // Index module
+            if (file_exists("modules/Index/Index.php")) {
                 self::$urlParam = [];
                 self::$urlParam[0] = 'index';
             }

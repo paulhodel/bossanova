@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -33,7 +33,16 @@ class Translate
             self::$instance = $this;
             // Callback for the translation
             ob_start(function($b) {
-                return $this->run($b);
+                // Skip translations in case of binary files
+                $matches = headers_list();
+                $matches = array_values(preg_grep('/^Content-type: (\w+)/i', headers_list()));
+                preg_match('/^Content-type: (\w+)/i', $matches[0], $result);
+                // Translate only the text content
+                if ($result[1] == 'text') {
+                    return $this->run($b);
+                } else {
+                    return $this->run($b);
+                }
             });
         }
 

@@ -36,12 +36,14 @@ class Translate
                 // Skip translations in case of binary files
                 $matches = headers_list();
                 $matches = array_values(preg_grep('/^Content-type: (\w+)/i', headers_list()));
-                preg_match('/^Content-type: (\w+)/i', $matches[0], $result);
+                if (isset($matches[0])) {
+                    preg_match('/^Content-type: (\w+)/i', $matches[0], $result);
+                }
                 // Translate only the text content
-                if ($result[1] == 'text') {
-                    return $this->run($b);
-                } else {
+                if (isset($result[1]) && $result[1] != 'text') {
                     return $b;
+                } else {
+                    return $this->run($b);
                 }
             });
         }

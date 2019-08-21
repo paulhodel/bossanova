@@ -41,7 +41,7 @@ class Translate
                 if ($result[1] == 'text') {
                     return $this->run($b);
                 } else {
-                    return $this->run($b);
+                    return $b;
                 }
             });
         }

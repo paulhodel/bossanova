@@ -19,6 +19,7 @@ use bossanova\Database\Database;
 use bossanova\Mail\Mail;
 use bossanova\Common\Post;
 use bossanova\Common\Request;
+use bossanova\Services\Services;
 
 class Module
 {
@@ -105,7 +106,7 @@ class Module
      * @param integer $id
      * @return array
      */
-    public function processRestRequest(Service $service, $id = null)
+    public function processRestRequest(Services $service, $id = null)
     {
         if ($this->getRequestMethod() == "POST" || $this->getRequestMethod() == "PUT") {
             if (! $id) {

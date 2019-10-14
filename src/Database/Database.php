@@ -782,7 +782,7 @@ class Database
                 }
             }
 
-                    // Check if there is any error in the SQL
+            // Check if there is any error in the SQL
             if ($row[1] && $row[2]) {
                 if ($this->error != $row[1] . " " . $row[2]) {
                     // If is defined any email, send this error by email

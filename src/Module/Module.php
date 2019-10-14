@@ -19,6 +19,7 @@ use bossanova\Database\Database;
 use bossanova\Mail\Mail;
 use bossanova\Common\Post;
 use bossanova\Common\Request;
+use bossanova\Services\Services;
 
 class Module
 {
@@ -97,94 +98,33 @@ class Module
      */
     public function __default()
     {
-        global $restriction;
+    }
 
-        // If native methods is disabled
-        if ($this->nativeMethods == false) {
-            if (Render::isAjax()) {
-                return json_encode(['message' => 'nativeMethods disabled']);
-            } else {
-                return false;
-            }
-        }
-
-        // Reading Restful Request
-        if ((int) $this->getParam(1) > 0) {
-            // Table name
-            $table = $this->getParam(0);
-            $id = $this->getParam(1);
-            $action = $table;
-        } elseif ((int) $this->getParam(2) > 0) {
-            // Table name
-            $table = $this->getParam(1);
-            $id = $this->getParam(2);
-            $action = $this->getParam(0) . '/' . $table;
-        } elseif ($this->getParam(0) && ! $this->getParam(1)) {
-            // Table name
-            $table = $this->getParam(0);
-            $id = 0;
-            $action = $table;
-        } elseif ($this->getParam(0) && $this->getParam(1) && ! $this->getParam(2)) {
-            // Table name
-            $table = $this->getParam(1);
-            $id = 0;
-            $action = $this->getParam(0) . '/' . $table;
-        } else {
-            $table = $this->getParam(0);
-            $id = 0;
-            $action = $this->getParam(0);
-        }
-
-        // Escape table name
-        $table = $this->escape($table);
-
-        // Create model object
-        $model = $this->query->model($table);
-
-        // Create REST service object
-        $service = new \services\Rest($model);
-
-        // Process rest request
-        if ($this->getRequestMethod() == 'POST' || $this->getRequestMethod() == 'PUT') {
-            // Posted data
-            $data = $this->getPost();
-
+    /**
+     * Process one ajax request
+     * @param Service $service
+     * @param integer $id
+     * @return array
+     */
+    public function processRestRequest(Services $service, $id = null)
+    {
+        if ($this->getRequestMethod() == "POST" || $this->getRequestMethod() == "PUT") {
             if (! $id) {
-                if ($this->getPermission("$action/insert")) {
-                    $result = $service->insert($data);
-                } else {
-                    $result = [ 'message' => '^^[Permission denied]^^' ];
-                }
+                $data = $service->insert($this->getPost());
             } else {
-                if ($this->getPermission("$action/update")) {
-                    $result = $service->update($id, $data);
-                } else {
-                    $result = [ 'message' => '^^[Permission denied]^^' ];
-                }
+                $data = $service->update($id, $this->getPost());
             }
-        } else if ($this->getRequestMethod() == 'DELETE') {
-            if ($this->getPermission("$action/delete")) {
-                if ($id > 0) {
-                    $result = $service->delete($id);
-                }
-            } else {
-                $result = [ 'message' => '^^[Permission denied]^^' ];
-            }
+        } else if ($this->getRequestMethod() == "DELETE") {
+            $data = $service->delete($id);
         } else {
-            if ($id > 0) {
-                if ($this->getPermission("$action/select")) {
-                    $result = $service->select($id);
-                } else {
-                    $result = [ 'message' => '^^[Permission denied]^^' ];
-                }
+            if ($id) {
+                $data = $service->select($id);
+            } else {
+                $data = null;
             }
         }
 
-        if (isset($result)) {
-            $this->setView(false);
-
-            return $result = $this->jsonEncode($result);
-        }
+        return $data;
     }
 
     /**

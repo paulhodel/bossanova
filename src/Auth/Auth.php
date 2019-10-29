@@ -17,10 +17,11 @@ use bossanova\Render\Render;
 use bossanova\Mail\Mail;
 use bossanova\Error\Error;
 use bossanova\Common\Wget;
+use bossanova\Common\Post;
 
 class Auth
 {
-    use Wget;
+    use Wget, Post;
 
     /**
      * Login actions (login and password recovery)
@@ -395,8 +396,8 @@ class Auth
         $module = Render::$urlParam[0];
 
         // Posted data
-        $username = $_POST['username'];
-        $password = $_POST['password'];
+        $username = strtolower($this->getPost('username'));
+        $password = $this->getPost('password');
 
         // Load user information
         $user = new \models\Users();
@@ -415,7 +416,7 @@ class Auth
             $password = hash('sha512', $password . $row['user_salt']);
 
             // Check to see if password matches
-            if ($password == $row['user_password'] && ($row['user_login'] == $username || $row['user_email'] == $username)) {
+            if ($password == $row['user_password'] && (strtolower($row['user_login']) == $username || strtolower($row['user_email']) == $username)) {
                 // User active
                 if ($row['user_status'] == 1) {
                     // Keep session alive by the use of cookies
@@ -643,14 +644,14 @@ class Auth
                     } else if ($row['user_recovery'] == 2) {
                         // Special forced authentication by hash
                         $this->authenticate($row, '^^[User authenticated from direct hash]^^', true);
-    
+
                         // Force login by hash for specific use
                         $user->user_hash = '';
                         $user->user_recovery = '';
                         $user->user_recovery_date = '';
                         $user->user_hash = $this->access_token;
                         $user->save();
-    
+
                         $data = [
                             'success' => 1,
                             'message' => "^^[User authenticated]^^",

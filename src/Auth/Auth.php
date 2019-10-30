@@ -718,7 +718,7 @@ class Auth
                         if (strlen($_POST['password']) < 5) {
                             $data = [
                                 'error' => 1,
-                                'message' => "^^[The chossen password is too short]^^",
+                                'message' => "^^[The choosen password is too short]^^",
                             ];
                         } else {
                             // Current password

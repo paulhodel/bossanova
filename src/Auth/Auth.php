@@ -259,7 +259,8 @@ class Auth
     private function authenticate($row)
     {
         // Load permission services
-        $permissions = new \services\Permissions();
+        $permissions = new \models\Permissions();
+        $permissions = new \services\Permissions($permissions);
 
         // Jwt
         $jwt = new Jwt;
@@ -470,7 +471,7 @@ class Auth
                         // Return message
                         $data = [
                             'success' => 1,
-                            'message' => "^^[The instructions to reset your password was successfully sent]^^",
+                            'message' => "^^[The instructions to reset your password was successfully sent]^^"
                         ];
                     } else {
                         $data = [
@@ -537,9 +538,6 @@ class Auth
             } else if ($row['user_status'] == 1) {
                 // This block handle password recovery
                 if ($row['user_recovery'] == 1) {
-                    // Update hash
-                    $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
-                    $user->save();
                     // Change password
                     $data = [
                         'success' => 1,
@@ -624,10 +622,15 @@ class Auth
                         ];
                     } else {
                         // Current password
-                        $password = hash('sha512', $password . $row['user_salt']);
+                        $previousPassword = hash('sha512', $password . $row['user_salt']);
 
                         // Check if was previouslyl used
-                        if ($password != $row['user_password']) {
+                        if ($previousPassword == $row['user_password']) {
+                            $data = [
+                                'error' => 1,
+                                'message' => "^^[Please choose a new password that was not used previously]^^",
+                            ];
+                        } else {
                             // Set message
                             $this->message = '^^[Password recovery completed]^^';
                             // Password recovery complete
@@ -649,11 +652,6 @@ class Auth
                                 'success' => 1,
                                 'message' => "^^[Password updated]^^",
                                 'url' => Render::getLink(Render::$urlParam[0]),
-                            ];
-                        } else {
-                            $data = [
-                                'error' => 1,
-                                'message' => "^^[Please choose a new password that was not used previously]^^",
                             ];
                         }
                     }

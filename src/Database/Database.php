@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -13,6 +13,7 @@
  */
 namespace bossanova\Database;
 
+use bossanova\Mail\Mail;
 use bossanova\Model\Model;
 
 class Database
@@ -190,7 +191,11 @@ class Database
      * @param boolean $database_function Do nothing because it is a database_function
      * @return string $val Content string binded
      */
-    public function bind($val)
+    public function bind($val) {
+        return $this->parse($val);
+    }
+
+    public function parse($val)
     {
         if (is_array($val)) {
             if (count($val)) {
@@ -384,7 +389,11 @@ class Database
             $this->query['params'] = [];
         }
 
-        $this->query['params'][] = func_get_args();
+        if (! isset($this->query['argument'])) {
+            $this->query['argument'] = [];
+        }
+
+        $this->query['argument'][] = func_get_args();
 
         return $this;
     }
@@ -422,16 +431,23 @@ class Database
     public function where($where = null)
     {
         if (isset($where)) {
-        // Create custom logical operations based on the indexes. example: ((1) OR (2)) AND (3)
+            // Create custom logical operations based on the indexes. example: ((1) OR (2)) AND (3)
             if (isset($this->query['argument'])) {
-            // Necessary operation to avoid brackets clash with SQL arguments
+                // Necessary operation to avoid brackets clash with SQL arguments
                 $this->query['where'] = $where;
                 $this->query['where'] = str_replace("(", "[[", $this->query['where']);
                 $this->query['where'] = str_replace(")", "]]", $this->query['where']);
 
                 foreach ($this->query['argument'] as $k => $v) {
-                // Replace each argument in the logical defined string in the input of this method
-                    $this->query['where'] = str_replace("[[$k]]", "($v)", $this->query['where']);
+                    // Replace each argument in the logical defined string in the input of this method
+                    if (is_array($v)) {
+                        $this->query['where'] = str_replace("[[$k]]", "($v[0])", $this->query['where']);
+                        // Values
+                        preg_match("/:(\w*)/i", $v[0], $test);
+                        $this->query['params'][$test[1]] = $v[1];
+                    } else {
+                        $this->query['where'] = str_replace("[[$k]]", "($v)", $this->query['where']);
+                    }
                 }
 
                 // Make sure to return the original syntax
@@ -447,8 +463,14 @@ class Database
                     if ($where) {
                         $where .= " AND ";
                     }
-
-                    $where .= "($v)";
+                    if (is_array($v)) {
+                        $where .= "($v[0])";
+                        // Values
+                        preg_match("/:(\w*)/i", $v[0], $test);
+                        $this->query['params'][$test[1]] = $v[1];
+                    } else {
+                        $where .= "($v)";
+                    }
                 }
             }
 
@@ -761,6 +783,12 @@ class Database
         } else {
             $result = $this->connection->prepare($this->query['query']);
 
+            if (isset($this->query['params'])) {
+                foreach ($this->query['params'] as $k => $v) {
+                    $result->bindParam($k, $v);
+                }
+            }
+
             $i = microtime(true);
             $result->execute();
             $f = microtime(true);
@@ -771,13 +799,18 @@ class Database
                 $t = $f - $i;
 
                 echo $this->query['query'] . "<br>\n($t)<br>\n". $row[1] . " " . $row[2];
+                if (isset($this->query['params'])) {
+                    print_r($this->query['params']);
+                }
             } elseif ($debug == 3) {
-            // Debug mode three interrupt the script if any error is found
+                // Debug mode three interrupt the script if any error is found
                 if ($row[1] && $row[2]) {
                     $t = $f - $i;
 
                     echo $this->query['query'] . "<br>\n($t)<br>\n". $row[1] . " " . $row[2];
-
+                    if (isset($this->query['params'])) {
+                        print_r($this->query['params']);
+                    }
                     exit;
                 }
             }
@@ -801,7 +834,8 @@ class Database
                         $text = $this->query['query'] . "<br>\n($t)<br>\n". $row[1] . " " . $row[2] . "$debug_text\n";
 
                         // Send debug email
-                        mail($email, "Bossanova::debug ($server)", "$text", "From:$email\r\n");
+                        $mail = new Mail();
+                        $mail->sendmail($email, "Bossanova::debug ($server)", "$text", $email);
                     }
                 }
 
@@ -880,7 +914,7 @@ class Database
     /**
      * Get the next id
      * @param string sequence used for postgres
-     * @return intenger return the for the inserted record
+     * @return int return the for the inserted record
      */
     public function nextId($seq = null)
     {
@@ -903,17 +937,16 @@ class Database
      * @param resource $result resource from the execution
      * @return array $row2 associative array with all the record
      */
-
     public function fetch_assoc($result)
     {
         return $result->fetch(\PDO::FETCH_ASSOC);
     }
+
     /**
      * Return the record fetched in an associative array
      * @param resource $result resource from the execution
      * @return array $row2 associative array with all the record
      */
-
     public function fetch_row($result)
     {
         return $result->fetch(\PDO::FETCH_NUM);
@@ -999,51 +1032,20 @@ class Database
     }
 
     /**
-     * Create a model on the fly if the table exists
-     * @param string $table table name
-     * @return object instance from a model
-     */
-    public function model($tableName)
-    {
-        if ($this->getTableInfo($tableName)) {
-            return new Model($this, $tableName);
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * Find a model
-     * @param string $table table name
-     * @return object instance from a model
-     */
-    public function find($name, $id = null)
-    {
-        if ($this->getTableInfo($name)) {
-            $model = new Model($this, $name);
-            if ($id) {
-                $model->get($id);
-            }
-        } else {
-            $model = false;
-        }
-
-        return $model;
-    }
-
-    /**
      * Create automatic models in case table match name
      * @param string $name
      * @param object $value
      */
     public function __get($name)
     {
-        if ($this->getTableInfo($name)) {
-            $model = new Model($this, $name);
-        } else {
-            $model = false;
+        if (! isset($this->{$name})) {
+            if ($this->getTableInfo($name)) {
+                $this->{$name} = new Model($this, $name);
+            } else {
+                $this->{$name} = false;
+            }
         }
 
-        return $model;
+        return $this->{$name};
     }
 }

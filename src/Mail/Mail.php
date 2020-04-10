@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -14,7 +14,6 @@
 namespace bossanova\Mail;
 
 use bossanova\Translate\Translate;
-use bossanova\Error\Error;
 
 class Mail
 {
@@ -33,21 +32,11 @@ class Mail
      */
     public function __construct(MailService $mailService = null)
     {
-        if (isset($mailService)) {
-            $this->adapter = $mailService;
-        } else {
-            // Default adapter
-            $adapter = ucfirst(defined('MS_CONFIG_TYPE') && MS_CONFIG_TYPE ? MS_CONFIG_TYPE : 'phpmailer');
-
-            // Connect to the default adapter
-            try {
-                $component = 'bossanova\\Mail\\Adapter' . $adapter;
-                $this->adapter = new $component;
-            } catch (\Exception $e) {
-                Error::handler("^^[It was not possible to find the mail adapter]^^" . $component, $e);
-                exit;
-            }
+        if (! $mailService) {
+            $mailService = new \bossanova\Mail\AdapterPhpmailer;
         }
+
+        $this->adapter = $mailService;
     }
 
     /**

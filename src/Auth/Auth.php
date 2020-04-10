@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -13,15 +13,18 @@
  */
 namespace bossanova\Auth;
 
+use bossanova\Config\Config;
 use bossanova\Render\Render;
 use bossanova\Mail\Mail;
-use bossanova\Error\Error;
 use bossanova\Common\Wget;
 use bossanova\Common\Post;
+use bossanova\Common\Request;
+use bossanova\Common\Ident;
+use bossanova\Jwt\Jwt;
 
 class Auth
 {
-    use Wget, Post;
+    use Ident, Wget, Post, Request;
 
     /**
      * Login actions (login and password recovery)
@@ -30,26 +33,21 @@ class Auth
      */
     public function login()
     {
-        $data = '';
-
         // Login action
-        if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id']) {
+        if ($this->getUser()) {
             if (isset(Render::$urlParam[1]) && Render::$urlParam[1] == 'login') {
                 $data = [
                     'success' => 1,
                     'message' => "^^[User already logged in]^^",
                     'url' => Render::getLink(Render::$urlParam[0]),
-                    'token' => $_SESSION['token'],
                 ];
             }
         } else {
             // Security container rules
-            if (! isset($_SESSION['bossanova_security']) || ! $_SESSION['bossanova_security']) {
-                $_SESSION['bossanova_security'] = [ 0, null, null ];
-            }
+            $validation = $this->getValidation();
 
             // Too many tries in a short period
-            if ($_SESSION['bossanova_security'][0] > 3 && (microtime(true) - $_SESSION['bossanova_security'][1]) < 2) {
+            if ($validation[0] > 3 && (microtime(true) - $validation[1]) < 2) {
                 // Erro 404
                 header("HTTP/1.0 404 Not Found");
 
@@ -58,35 +56,37 @@ class Auth
                     'message' => "^^[Invalid login request]^^",
                 ];
             } else {
-                $captcha = isset($_POST['captcha']) ? $_POST['captcha'] : null;
+                $captcha = $this->getPost('captcha');
 
                 // Receiving post, captcha is in memory for comparison, 5 erros in a row, compare catch with what was posted
-                if (isset($_POST) && count($_POST) && $_SESSION['bossanova_security'][2] &&  $_SESSION['bossanova_security'][0] > 5 && $_SESSION['bossanova_security'][2] != $captcha) {
+                if ($captcha && $validation[2] &&  $validation[0] > 5 && $validation[2] != $captcha) {
                     $data = [
                         'error' => 1,
                         'message' => "^^[Invalid captcha, please try again]^^",
                     ];
                 } else {
-                    if (isset($_POST['username'])) {
+                    if ($this->getPost('username')) {
                         // Recovery flag posted
-                        if (isset($_POST['recovery']) && $_POST['recovery']) {
+                        if ($this->getPost('recovery')) {
                             $data = $this->loginRecovery();
                         } else {
                             // Perform normal login
                             $data = $this->loginRegister();
                         }
-                    } else if (isset($_REQUEST['h']) && $_REQUEST['h']) {
+                    } else if ($this->getRequest('h')) {
                         // Recovery process
-                        if (isset($_POST['password'])) {
+                        $data = $this->loginHash($this->getRequest('h'));
+                    } else if ($this->getPost('h')) {
+                        if ($this->getPost('password')) {
                             // Change password step
-                            $data = $this->updatePassword($_REQUEST['h']);
+                            $data = $this->updatePassword($this->getPost('h'));
                         } else {
-                            // Identify recovery token
-                            $data = $this->loginHash($_REQUEST['h']);
+                            // Recovery process
+                            $data = $this->loginHash($this->getPost('h'));
                         }
-                    } else if (isset($_REQUEST['f']) && $_REQUEST['f']) {
+                    } else if ($this->getRequest('f')) {
                         // Facebook token to be analised
-                        $data = $this->facebookTokenLogin($_REQUEST['f']);
+                        $data = $this->facebookTokenLogin();
                     } else {
                         if (Render::isAjax()) {
                             // Login forbiden
@@ -98,11 +98,11 @@ class Auth
                 // Replace the message
                 if (defined('BOSSANOVA_LOGIN_CAPTCHA') && BOSSANOVA_LOGIN_CAPTCHA == true) {
                     // Too many tries, request catcha
-                    if (isset($data['error']) && $_SESSION['bossanova_security'][0] > 5) {
+                    if (isset($data['error']) && $validation[0] > 5) {
                         // Captcha data
                         if ($captcha = $this->captcha()) {
                             // Captcha digit
-                            $_SESSION['bossanova_security'][2] = $captcha[0];
+                            $validation[2] = $captcha[0];
                             // Captch image
                             $data['data'] = $captcha[1];
                         }
@@ -112,16 +112,19 @@ class Auth
                 // Reset counter in any success response
                 if (isset($data['success']) && $data['success']) {
                     // Reset count
-                    $_SESSION['bossanova_security'] = [ 0, null, null ];
+                    $this->setValidation([ 0, null, null ]);
                 }
             }
 
             // Record of the activity
-            $_SESSION['bossanova_security'][0]++;
-            $_SESSION['bossanova_security'][1] = microtime(true);
+            $validation[0]++;
+            $validation[1] = microtime(true);
+
+            // Persist validations
+            $this->setValidation($validation);
         }
 
-        return $data;
+        return isset($data) ? $data : null;
     }
 
     /**
@@ -131,23 +134,8 @@ class Auth
      */
     public function logout()
     {
-        // Force logout
-        if ($user_id = $this->getUser()) {
-            $user = new \models\Users;
-            $user->get($user_id);
-            $user->user_hash = '';
-            $user->save();
-        }
-
-        // Removing session
-        $_SESSION = [];
-
-        // Destroy session
-        session_destroy();
-        session_commit();
-
-        // Removing cookie
-        $this->destroySession();
+        // Reset cookie
+        header("Set-Cookie: bossanova=null; path=/; SameSite=Lax; expires=0;");
 
         // Redirect to the main page
         $url = Render::$urlParam[0];
@@ -159,7 +147,7 @@ class Auth
         // Return
         if (Render::isAjax()) {
             $data = [
-                'error' => 1,
+                'success' => 1,
                 'message' => "^^[The user is now log out]^^",
                 'url' => Render::getLink($url),
             ];
@@ -168,17 +156,15 @@ class Auth
             exit;
         }
 
-        return $data;
-    }
+        // Force logout
+        if ($user_id = $this->getUser()) {
+            $user = new \models\Users;
+            $user->get($user_id);
+            $user->user_hash = '';
+            $user->save();
+        }
 
-    /**
-     * Get the registered user_id
-     *
-     * @return integer $user_id
-     */
-    public function getUser()
-    {
-        return (isset($_SESSION['user_id'])) ? $_SESSION['user_id'] : 0;
+        return $data;
     }
 
     /**
@@ -186,23 +172,15 @@ class Auth
      *
      * @return integer $user_id
      */
-    public function getIdent()
+    final public function getIdent()
     {
-        if (! $this->getUser()) {
-            // Try to recover session from cookie
-            $this->sessionRecovery();
-        }
-
         // After all process check if the user is logged
         if (! $this->getUser()) {
             $param = isset(Render::$urlParam[1]) ? Render::$urlParam[1] : '';
 
             // Redirect the user to the login page
             if ($param != 'login') {
-                // Keep the reference to redirect to this page after the login
-                if (! isset($_SESSION['HTTP_REFERER']) || ! $_SESSION['HTTP_REFERER']) {
-                    $_SESSION['HTTP_REFERER'] = '/' . implode("/", Render::$urlParam);
-                }
+                // TODO: referer
 
                 // Redirect
                 $data = [
@@ -225,46 +203,51 @@ class Auth
     }
 
     /**
-     * Recover session from cookie
+     * This method check if the URL has any defined restriction in the global scope
      *
-     * @param array $row
-     * @param string $message
+     * @param  array  $route      Route
+     * @return string $restricted First restricted route from the most to less significative argument
      */
-
-    public function sessionRecovery()
+    final public function isRestricted(array $access_route)
     {
-        $data = [];
+        // Get restriction defined in the config.inc.php
+        $restriction = Config::get('restrictions');
 
-        // Check if the cookie for this user is registered and try to recover the userid
-        if ($access_token = $this->initSession()) {
-            // Cookie information
-            $cookie = json_decode(base64_decode($_COOKIE['bossanova']));
+        foreach ($restriction AS $k => $v) {
+            $restriction[strtolower(str_replace('-', '_', $k))] = $v;
+        }
 
-            // User stored in the cookies
-            $user_id = isset($cookie->user_id) ? $cookie->user_id : 0;
+        // Check the access url against the restriction array definition in config.inc.php
+        if (count($access_route)) {
+            $route = '';
 
-            // User Identification
-            if ($user_id) {
-                // Load user information
-                $user = new \models\Users();
-                $row = $user->getUserByHash($access_token);
+            foreach ($access_route as $k => $v) {
+                // Check all route possibilities
+                if ($route) {
+                    $route .= '/';
+                }
+                $route .= strtolower(str_replace('-', '_', $v));
 
-                if (isset($row['user_id']) && $row['user_id'] == $user_id && $row['user_hash'] == $access_token) {
-                    // Authenticate user
-                    $this->authenticate($row, 'Recovery session from cookie', true);
-
-                    // Set a new sessionId
-                    $user->user_hash = $this->access_token;
-                    $user->save();
-
-                    $data = [
-                        'success' => 1,
-                        'message' => "^^[Session recovered from cookie]^^",
-                        'token' => $this->access_token,
-                    ];
+                // Restriction exists for this route
+                if (isset($restriction[$route])) {
+                    $restricted = $route;
                 }
             }
+
+            // Always allow login/logout method
+            if (count($access_route) < 3) {
+                $param = $access_route[count($access_route) - 1];
+                if ($param == 'login' || $param == 'logout') {
+                    unset($restricted);
+                }
+            }
+        } else {
+            if (isset($restriction[''])) {
+                $restricted = '';
+            }
         }
+
+        return isset($restricted) ? $restricted : false;
     }
 
     /**
@@ -273,117 +256,32 @@ class Auth
      * @param array $row
      * @param string $message
      */
-    private function authenticate($row, $message = '', $keepAlive = false)
+    private function authenticate($row)
     {
-        // Access token
-        $this->access_token = $this->setSession($row['user_id'], $keepAlive);
-
         // Load permission services
         $permissions = new \services\Permissions();
 
-        // Registering permissions
-        $_SESSION['permission'] = $permissions->getPermissionsById($row['permission_id']);
+        // Jwt
+        $jwt = new Jwt;
 
-        // Check if the user is a superuser
-        $_SESSION['superuser'] = $permissions->isPermissionsSuperUser($row['permission_id']);
+        // Payload
+        $token = $jwt->set([
+            'domain' => Render::getDomain(),
+            'user_id' => $row['user_id'],
+            'parent_id' => $row['parent_id'],
+            'permission_id' => $row['permission_id'],
+            'locale' => $row['user_locale'],
+            'expiration' => time(),
+            'permissions' => $permissions->getPermissionsById($row['permission_id']),
+            'country_id' => isset($row['country_id']) && $row['country_id'] ? $row['country_id'] : 0,
+        ])->save();
 
-        // User session
-        $_SESSION['user_id'] = $row['user_id'];
-
-        // Permission
-        $_SESSION['permission_id'] = $row['permission_id'];
-
-        // Register parent
-        $_SESSION['parent_id'] = $row['parent_id'];
-
-        // keep the logs for that transaction
-        $_SESSION['user_access_id'] = $this->accessLog($row['user_id'], $message, 1);
-
-        // Token
-        $_SESSION['token'] = $this->access_token;
-
-        // Locale registration
-        $this->setLocale($row['user_locale']);
-    }
-
-    /**
-     * Load the access token from the session stored in the cookies
-     *
-     * @return string $token
-     */
-    private function initSession()
-    {
-        // If the cookie is already defined
-        if (isset($_COOKIE['bossanova'])) {
-            // Extract the access token from the cookie
-            $cookie = json_decode(base64_decode($_COOKIE['bossanova']));
-
-            // Define the access token for this session
-            $this->access_token = isset($cookie->id) ? $cookie->id : 0;
-        } else {
-            // No cookie defined
-            $this->access_token = 0;
+        // Access log
+        if (defined('BOSSANOVA_LOG_USER_ACCESS')) {
+            $this->accessLog($row);
         }
 
-        return $this->access_token;
-    }
-
-    /**
-     * Load all permissions for a user_id based on his permission_id
-     *
-     * @param  integer $userId
-     * @param  boolean $keepAlive
-     * @return string  $token
-     */
-    private function setSession($userId, $keepAlive)
-    {
-        try {
-            // Regenerate
-            session_regenerate_id();
-
-            // Generate hash
-            $this->access_token = session_id();
-
-            if ($keepAlive) {
-                // Check headers
-                if (headers_sent()) {
-                    throw Exception("Http already sent.");
-                }
-
-                // Save cookie
-                $data = json_encode([
-                    'domain' => Render::getDomain(),
-                    'user_id' => $userId,
-                    'id' => $this->access_token,
-                    'date' => time()
-                ]);
-                $cookie_value = base64_encode($data);
-
-                // Default for 7 days
-                $expire = time() + 86400 * 7;
-                setcookie('bossanova', $cookie_value, $expire, '/');
-            }
-        } catch (\Exception $e) {
-            if (class_exists("Error")) {
-                Error::handler("Http already sent.", $e);
-            } else {
-                echo "Http already sent.";
-            }
-        }
-
-        return $this->access_token;
-    }
-
-    /**
-     * Destroy the session and make sure destroy cookies
-     *
-     * @return void
-     */
-    private function destroySession()
-    {
-        if (isset($_COOKIE['bossanova'])) {
-            setcookie('bossanova', '', -1, '/');
-        }
+        return $token;
     }
 
     /**
@@ -404,13 +302,16 @@ class Auth
         $row = $user->getUserByIdent($username);
 
         if (! isset($row['user_id']) || ! $row['user_id'] || ! $row['user_status']) {
+            // Current message
+            $this->message = '^^[Invalid username or password]^^';
+
             $data = [
                 'error' => 1,
-                'message' => "^^[Invalid username or password]^^",
+                'message' => $this->message,
             ];
 
             // keep the logs for that transaction
-            $this->accessLog(null, "^^[Invalid Username]^^: $username", 0);
+            $this->accessLog(null, "{$this->message}: $username", 0);
         } else {
             // Posted password
             $password = hash('sha512', $password . $row['user_salt']);
@@ -419,36 +320,32 @@ class Auth
             if ($password == $row['user_password'] && (strtolower($row['user_login']) == $username || strtolower($row['user_email']) == $username)) {
                 // User active
                 if ($row['user_status'] == 1) {
-                    // Keep session alive by the use of cookies
-                    $keepAlive = (isset($_POST['remember'])) ? 1 : 0;
+                    // Current message
+                    $this->message = '^^[Successfully logged in]^^';
 
                     // Authenticate
-                    $this->authenticate($row, '^^[Successfully logged in]^^', $keepAlive);
+                    $token = $this->authenticate($row);
 
-                    // Update hash
-                    $user->user_hash = $this->access_token;
+                    // Make sure this is blank
+                    $user->user_hash = '';
                     $user->user_recovery = '';
                     $user->user_recovery_date = '';
 
-                    // Mobile token
-                    if (isset($_GET['token']) && $_GET['token']) {
-                        $user->user_token = $_GET['token'];
+                    // Mobile device token
+                    if (isset($this->getRequest['token']) && $this->getRequest['token']) {
+                        $user->user_token = $this->getRequest['token'];
                     }
 
+                    // Update user information
                     $user->save();
 
-                    // Redirection to the referer
-                    if (isset($_SESSION['HTTP_REFERER'])) {
-                        $url = $_SESSION['HTTP_REFERER'];
-                        unset($_SESSION['HTTP_REFERER']);
-                    } else {
-                        $url = Render::getLink($module);
-                    }
+                    // TODO: Implement referer
+                    $url = Render::getLink($module);
 
                     $data = [
                         'success' => 1,
-                        'message' => "^^[Successfully logged in]^^",
-                        'token' => $this->access_token,
+                        'message' => $this->message,
+                        'token' => $token,
                         'url' => $url,
                     ];
 
@@ -463,19 +360,22 @@ class Auth
 
                     $data = [
                         'success' => 1,
+                        'message' => $row['user_status'] == 2 ? '^^[This is your first access, please select a new password]^^' : '^^[Your password is expired. Please pick a new one]^^',
                         'action' => 'resetPassword',
                         'hash' => $user->user_hash,
                         'url' => $url
                     ];
                 }
             } else {
+                $this->message = "^^[Invalid username or password]^^";
+
                 $data = [
                     'error' => 1,
-                    'message' => "^^[Invalid username or password]^^",
+                    'message' => $this->message,
                 ];
 
                 // keep the logs for that transaction
-                $this->accessLog($row['user_id'], $data['message'], 0);
+                $this->accessLog($row['user_id'], $this->message, 0);
             }
         }
 
@@ -489,7 +389,7 @@ class Auth
     private function loginRecovery()
     {
         // Username
-        $username = $_POST['username'];
+        $username = strtolower($this->getPost('username'));
 
         // Load user information
         $user = new \models\Users();
@@ -503,7 +403,7 @@ class Auth
             ];
         } else {
             // Check the user status
-            if ($row['user_status'] > 0 && ($row['user_login'] == $username || $row['user_email'] == $username)) {
+            if ($row['user_status'] > 0 && (strtolower($row['user_login']) == $username || strtolower($row['user_email']) == $username)) {
                 // Code
                 $row['recover_id'] = substr(uniqid(mt_rand(), true), 0, 6);
 
@@ -520,8 +420,9 @@ class Auth
                 $user->save();
 
                 // Send email with instructions
-                $filename = defined('EMAIL_RECOVERY_FILE') && file_exists(EMAIL_RECOVERY_FILE)
-                ? EMAIL_RECOVERY_FILE : 'resources/texts/recover.txt';
+                $filename = defined('EMAIL_RECOVERY_FILE')
+                    && file_exists(EMAIL_RECOVERY_FILE) ?
+                        EMAIL_RECOVERY_FILE : 'resources/texts/recover.txt';
 
                 // Send instructions email to the user
                 try {
@@ -545,6 +446,7 @@ class Auth
                         $f = [ MS_CONFIG_FROM, MS_CONFIG_NAME ];
 
                         // Destination
+                        $t = [];
                         $t[] = [ $row['user_email'], $row['user_name'] ];
 
                         // Send email
@@ -582,9 +484,6 @@ class Auth
                         'message' => "^^[It was not possible to open the recovery text file]^^ $filename",
                     ];
                 }
-
-                // Destroy any existing cookie
-                $this->destroySession();
             } else {
                 $data = [
                     'error' => 1,
@@ -596,7 +495,6 @@ class Auth
         return $data;
     }
 
-
     /**
      * This method handle user register confirmation, password recovery or hash login
      */
@@ -604,168 +502,167 @@ class Auth
     {
         $hash = preg_replace("/[^a-zA-Z0-9]/", "", $hash);
 
-        if ($hash && strlen($hash) == 128) {
-            // Module
-            $module = Render::$urlParam[0];
+        // Module
+        $module = Render::$urlParam[0];
 
-            // Load user information
-            $user = new \models\Users();
-            $row = $user->getUserByHash($hash);
+        // Load user information
+        $user = new \models\Users();
+        $row = $user->getUserByHash($hash);
 
-            // Hash found
-            if (isset($row['user_id']) && $row['user_hash'] == $hash) {
-                // Action depends on the current user status
-                if ($row['user_status'] == 2) {
-                    // User activation
+        // Hash found
+        if (isset($row['user_id']) && $row['user_hash'] == $hash) {
+            // Action depends on the current user status
+            if ($row['user_status'] == 2) {
+                // Update hash
+                $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
+                $user->save();
+                // User activation
+                $data = [
+                    'success' => 1,
+                    'message' => '^^[This is your first access and need to choose a new password]^^',
+                    'action' => 'resetPassword',
+                    'hash' => $user->user_hash,
+                ];
+            } else if ($row['user_status'] == 3) {
+                // Update hash
+                $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
+                $user->save();
+                // User password is expired
+                $data = [
+                    'success' => 1,
+                    'message' => '^^[Your password has expired. For security reasons, please choose a new password]^^',
+                    'action' => 'resetPassword',
+                    'hash' => $user->user_hash,
+                ];
+            } else if ($row['user_status'] == 1) {
+                // This block handle password recovery
+                if ($row['user_recovery'] == 1) {
+                    // Update hash
+                    $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
+                    $user->save();
+                    // Change password
                     $data = [
                         'success' => 1,
-                        'message' => '^^[This is your first access and need to choose a new password]^^',
+                        'message' => '^^[Please choose a new password]^^',
                         'action' => 'resetPassword',
-                        'hash' => $hash,
+                        'hash' => $user->user_hash,
                     ];
-                } else if ($row['user_status'] == 3) {
-                    // User password is expired
+                } else if ($row['user_recovery'] == 2) {
+                    // Message
+                    $this->message = '^^[User authenticated from direct hash]^^';
+                    // Special forced authentication by hash
+                    $this->authenticate($row);
+
+                    // Force login by hash for specific use
+                    $user->user_hash = '';
+                    $user->user_recovery = '';
+                    $user->user_recovery_date = '';
+                    $user->user_hash = '';
+                    $user->save();
+
                     $data = [
                         'success' => 1,
-                        'message' => '^^[Your password has expired. For security reasons, please choose a new password]^^',
-                        'action' => 'resetPassword',
-                        'hash' => $hash,
+                        'message' => $this->message,
+                        'url' => Render::getLink($module),
                     ];
-                } else if ($row['user_status'] == 1) {
-                    // This block handle password recovery
-                    if ($row['user_recovery'] == 1) {
-                        // TODO: Create contional :: link can't be older than one day
-                        $data = [
-                            'success' => 1,
-                            'message' => '^^[Please choose a new password]^^',
-                            'action' => 'resetPassword',
-                            'hash' => $hash,
-                        ];
-                    } else if ($row['user_recovery'] == 2) {
-                        // Special forced authentication by hash
-                        $this->authenticate($row, '^^[User authenticated from direct hash]^^', true);
-
-                        // Force login by hash for specific use
-                        $user->user_hash = '';
-                        $user->user_recovery = '';
-                        $user->user_recovery_date = '';
-                        $user->user_hash = $this->access_token;
-                        $user->save();
-
-                        $data = [
-                            'success' => 1,
-                            'message' => "^^[User authenticated]^^",
-                            'url' => Render::getLink($module),
-                            'token' => $this->access_token,
-                        ];
-                    } else {
-                        // No recovery process on going
-                        $data = [
-                            'error' => 1,
-                            'url' => Render::getLink($module . '/login'),
-                        ];
-                    }
                 } else {
-                    // No user active found
+                    // No recovery process on going
                     $data = [
                         'error' => 1,
                         'url' => Render::getLink($module . '/login'),
                     ];
                 }
             } else {
-                // No user found
-                if (Render::isAjax()) {
-                    $data = [
-                        'error' => 1,
-                        'message' => '^^[Invalid code]^^',
-                    ];
-                } else {
-                    $data = [
-                        'error' => 1,
-                        'url' => Render::getLink($module . '/login'),
-                    ];
-                }
+                // No user active found
+                $data = [
+                    'error' => 1,
+                    'url' => Render::getLink($module . '/login'),
+                ];
             }
         } else {
-            $data = [
-                'error' => 1,
-                'message' => '^^[Invalid code]^^',
-            ];
+            // No user found
+            if (Render::isAjax()) {
+                $data = [
+                    'error' => 1,
+                    'message' => '^^[Invalid code]^^',
+                ];
+            } else {
+                $data = [
+                    'error' => 1,
+                    'url' => Render::getLink($module . '/login'),
+                ];
+            }
         }
 
         return $data;
     }
 
+    /**
+     * Update user password from recovery mode
+     * @param string $hash
+     */
     private function updatePassword($hash)
     {
+        // Get hash
         $hash = preg_replace("/[^a-zA-Z0-9]/", "", $hash);
 
-        if ($hash && strlen($hash) == 128) {
-            // Module
-            $module = Render::$urlParam[0];
+        // Load user information
+        $user = new \models\Users();
+        $row = $user->getUserByHash($hash);
 
-            // Load user information
-            $user = new \models\Users();
-            $row = $user->getUserByHash($hash);
+        // Hash found
+        if (isset($row['user_id']) && $row['user_hash'] == $hash) {
+            if (($row['user_status'] == 1 && $row['user_recovery'] > 0) ||
+                ($row['user_status'] == 2) ||
+                ($row['user_status'] == 3)) {
 
-            // Hash found
-            if (isset($row['user_id']) && $row['user_hash'] == $hash) {
-                if (($row['user_status'] == 1 && $row['user_recovery'] > 0) ||
-                    ($row['user_status'] == 2) ||
-                    ($row['user_status'] == 3)) {
+                if ($password = $this->getPost('password')) {
+                    if (strlen($password) < 5) {
+                        $data = [
+                            'error' => 1,
+                            'message' => "^^[The choosen password is too short]^^",
+                        ];
+                    } else {
+                        // Current password
+                        $password = hash('sha512', $password . $row['user_salt']);
 
-                    if (isset($_POST['password']) && $_POST['password']) {
-                        if (strlen($_POST['password']) < 5) {
+                        // Check if was previouslyl used
+                        if ($password != $row['user_password']) {
+                            // Set message
+                            $this->message = '^^[Password recovery completed]^^';
+                            // Password recovery complete
+                            $this->authenticate($row);
+                            // Update user password
+                            $salt = hash('sha512', uniqid(mt_rand(1, mt_getrandmax()), true));
+                            $pass = hash('sha512', $password . $salt);
+                            // Update user information
+                            $user->user_salt = $salt;
+                            $user->user_password = $pass;
+                            $user->user_hash = '';
+                            $user->user_recovery = '';
+                            $user->user_recovery_date = '';
+                            $user->user_status = 1;
+                            $user->save();
+
+                            // Feedback
                             $data = [
-                                'error' => 1,
-                                'message' => "^^[The choosen password is too short]^^",
+                                'success' => 1,
+                                'message' => "^^[Password updated]^^",
+                                'url' => Render::getLink(Render::$urlParam[0]),
                             ];
                         } else {
-                            // Current password
-                            $password = hash('sha512', $_POST['password'] . $row['user_salt']);
-
-                            // Check if was previouslyl used
-                            if ($password != $row['user_password']) {
-                                // Password recovery complete
-                                $this->authenticate($row, '^^[Password recovery completed]^^', true);
-
-                                // Update user password
-                                $salt = hash('sha512', uniqid(mt_rand(1, mt_getrandmax()), true));
-                                $pass = hash('sha512', $_POST['password'] . $salt);
-
-                                $user->user_salt = $salt;
-                                $user->user_password = $pass;
-                                $user->user_hash = '';
-                                $user->user_recovery = '';
-                                $user->user_recovery_date = '';
-                                $user->user_status = 1;
-                                $user->save();
-
-                                $data = [
-                                    'success' => 1,
-                                    'message' => "^^[Password updated]^^",
-                                    'url' => Render::getLink($module),
-                                    'token' => $this->access_token,
-                                ];
-                            } else {
-                                $data = [
-                                    'error' => 1,
-                                    'message' => "^^[Please choose a new password that was not used previously]^^",
-                                ];
-                            }
+                            $data = [
+                                'error' => 1,
+                                'message' => "^^[Please choose a new password that was not used previously]^^",
+                            ];
                         }
                     }
                 }
-            } else {
-                $data = [
-                    'error' => 1,
-                    'message' => "^^[Please try to reset your password again]^^",
-                ];
             }
         } else {
             $data = [
                 'error' => 1,
-                'message' => "^^[Invalid code]^^",
+                'message' => "^^[Please try to reset your password again]^^",
             ];
         }
 
@@ -815,36 +712,19 @@ class Auth
     }
 
     /**
-     * Set the user initial locale
-     *
-     * @param  string $locale Locale file, must be available at resources/locale/[string].csv
-     * @return void
-     */
-    public function setLocale($locale)
-    {
-        if (file_exists("resources/locales/$locale.csv")) {
-            // Update the session language reference
-            $_SESSION['locale'] = $locale;
-
-            // Exclude the current dictionary words
-            unset($_SESSION['dictionary']);
-        }
-    }
-
-    /**
      * Captcha
      *
      * @param  string $locale Locale file, must be available at resources/locale/[string].csv
      * @return void
      */
-    public function captcha()
+    private function captcha()
     {
         try {
             // Adapted for The Art of Web: www.the-art-of-web.com
             // Please acknowledge use of this code by including this header.
 
             // initialise image with dimensions of 120 x 30 pixels
-            $image = @imagecreatetruecolor(220, 50) or die("Cannot Initialize new GD image stream");
+            $image = @imagecreatetruecolor(280, 60) or die("Cannot Initialize new GD image stream");
 
             // set background to white and allocate drawing colours
             $background = imagecolorallocate($image, 0xFF, 0xFF, 0xFF);
@@ -855,12 +735,12 @@ class Auth
             // draw random lines on canvas
             for ($i = 0; $i < 6; $i++) {
                 imagesetthickness($image, rand(1,4));
-                imageline($image, 0, rand(10,40), 220, rand(10,40), $linecolor);
+                imageline($image, 0, rand(10,40), 280, rand(10,40), $linecolor);
             }
 
             // add random digits to canvas
             $digit = '';
-            for($x = 30; $x <= 200; $x += 50) {
+            for($x = 30; $x <= 280; $x += 70) {
                 $digit .= ($num = rand(0, 9));
                 imagechar($image, 6, $x, rand(2, 30), $num, $textcolor);
             }
@@ -882,7 +762,7 @@ class Auth
     /**
      * Facebook integration
      * @param string $token
-     * @return json
+     * @return string $json
      */
     private function facebookTokenLogin($token)
     {
@@ -949,8 +829,11 @@ class Auth
                     }
 
                     if (isset($row['user_id'])) {
+                        // Message
+                        $this->message = '^^[User authenticated from facebook token]^^';
+
                         // Authenticated
-                        $this->authenticate($row, '^^[User authenticated from facebook token]^^', true);
+                        $this->authenticate($row);
 
                         // Force login by hash for specific use
                         $user->user_hash = '';
@@ -958,18 +841,18 @@ class Auth
                         $user->user_recovery_date = '';
                         $user->user_hash = $this->access_token;
 
-                        // Mobile token
-                        if (isset($_GET['token']) && $_GET['token']) {
-                            $user->user_token = $_GET['token'];
+                        // Mobile device token
+                        if ($this->getRequest('token')) {
+                            $user->user_token = $this->getRequest('token');
                         }
 
+                        // Update user information
                         $user->save();
 
                         $data = [
                             'success' => 1,
-                            'message' => "^^[User authenticated]^^",
+                            'message' => $this->message,
                             'url' => Render::getLink(Render::$urlParam[0]),
-                            'token' => $this->access_token,
                         ];
                     } else {
                         $data = [
@@ -995,5 +878,38 @@ class Auth
         }
 
         return $data;
+    }
+
+    /**
+     * Set the user initial locale
+     *
+     * @param  string $locale Locale file, must be available at resources/locale/[string].csv
+     * @return void
+     */
+    private function setLocale($locale)
+    {
+        if (file_exists("resources/locales/$locale.csv")) {
+            return $locale;
+        }
+    }
+
+    /**
+     * Validations - TODO: implement redis as alternative to sessions
+     */
+    private function getValidation()
+    {
+        $validation = isset($_SESSION['bossanovaValidation']) ? $_SESSION['bossanovaValidation'] : [ 0, null, null ];
+
+        return $validation;
+    }
+
+    /**
+     * Validations - TODO: implement redis as alternative to sessions
+     */
+    private function setValidation($validation)
+    {
+        $_SESSION['bossanovaValidation'] = $validation;
+
+        return true;
     }
 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -15,19 +15,15 @@ namespace bossanova\Services;
 
 use bossanova\Model\Model;
 use bossanova\Mail\Mail;
-use bossanova\Common\Helpers;
+use bossanova\Mail\AdapterPhpmailer AS Adapter;
 
 class Services
 {
-    use Helpers;
-
     public $mail = null;
     public $model = null;
 
     public function __construct(Model $model = null)
     {
-        $this->mail = new Mail();
-
         if (isset($model)) {
             $this->model = $model;
         }
@@ -67,7 +63,8 @@ class Services
         if (! $id) {
             $data = [
                 'error' => 1,
-                'message' => '^^[It was not possible to save your record]^^: ' . $this->model->getError()
+                'message' => '^^[It was not possible to save your record]^^: '
+                    . $this->model->getError()
             ];
         } else {
             $data = [
@@ -89,12 +86,13 @@ class Services
      */
     public function update($id, $row)
     {
-        $data = $this->model->column($row)->update($id);
+        $data = $this->model->column($row)->update($id); // TODO: implementar seguranca
 
         if (! $data) {
             $data = [
                 'error' => 1,
-                'message' => '^^[It was not possible to save your record]^^: ' . $this->model->getError()
+                'message' => '^^[It was not possible to save your record]^^: '
+                    . $this->model->getError()
             ];
         } else {
             $data = [
@@ -119,7 +117,8 @@ class Services
         if (! $data) {
             $data = [
                 'error' => 1,
-                'message' => '^^[It was not possible to delete your record]^^: ' . $this->model->getError()
+                'message' => '^^[It was not possible to delete your record]^^: '
+                    . $this->model->getError()
             ];
         } else {
             $data = [
@@ -135,15 +134,11 @@ class Services
      *
      * @return array $data : grid data
      */
-    public function grid()
+    public function grid(Grid $gridAdapter)
     {
         $data = $this->model->grid();
 
-        // Convert to grid
-        $grid = new \services\Grid();
-        $data = $grid->get($data);
-
-        return $data;
+        return $gridAdapter->get($data);
     }
 
     /**
@@ -153,31 +148,14 @@ class Services
      */
     public function sendmail($to, $subject, $html, $from, $files = null)
     {
-        ob_start();
-        $instance = $this->mail->sendmail($to, $subject, $html, $from, $files);
-        $result = ob_get_clean();
-
-        return $instance;
-    }
-
-    /**
-     * Remove special characters from the string
-     *
-     * @param  string $str
-     * @return string
-     */
-    public function escape($str)
-    {
-        $str = trim($str);
-
-        if (get_magic_quotes_gpc()) {
-            $str = stripslashes($str);
+        if (! $this->mail) {
+            $this->mail = new Mail(new Adapter());
         }
 
-        $str = htmlentities($str);
-        $search = array("\\", "\0", "\n", "\r", "\x1a", "'", '"');
-        $replace = array("", "", "", "", "", "", "");
+        ob_start();
+        $instance = $this->mail->sendmail($to, $subject, $html, $from, $files);
+        ob_get_clean();
 
-        return str_replace($search, $replace, $str);
+        return $instance;
     }
 }

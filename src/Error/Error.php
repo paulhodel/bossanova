@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -12,6 +12,8 @@
  * Error Handler
  */
 namespace bossanova\Error;
+
+use bossanova\Render\Render;
 
 class Error
 {
@@ -32,9 +34,10 @@ class Error
      */
     public static function handler($description, $e)
     {
-        if (isset($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+        if (Render::isAjax()) {
             $description = strip_tags($description);
             $e = strip_tags($e);
+            $data = [];
             $data['message'] = $description;
             echo json_encode($data);
         } else {

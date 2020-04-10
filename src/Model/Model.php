@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -14,12 +14,10 @@
 namespace bossanova\Model;
 
 use bossanova\Database\Database;
-use bossanova\Common\Post;
+use bossanova\Redis\Redis;
 
 class Model extends \stdClass
 {
-    use Post;
-
     // Database instance
     public $database = null;
 
@@ -33,44 +31,29 @@ class Model extends \stdClass
      * @param  string $table table name
      * @return void
      */
-    public function __construct(&$instance = null, $tableName = null)
-    {
-        if (isset($instance)) {
-            $this->database = $instance;
-        } else {
-            $this->database = Database::getInstance();
-        }
-
-        // Set table configuration
-        if (! $this->config) {
-            $this->setConfig($tableName);
-        }
-
-        // Make it a object
-        $this->config = (object) $this->config;
-
-        return $this;
-    }
-
-    private function setConfig($tableName = null)
+    public function __construct(Database &$instance = null, $tableName = null)
     {
         try {
-            // Table name
-            $tableName = ($tableName) ? $tableName : strtolower(str_replace('models\\', '', get_class($this)));
-
-            // Looing for the table information
-            if ($info = $this->getTableInfo($tableName)) {
-                $this->config = (object) [
-                    'tableName' => $tableName,
-                    'primaryKey' => $info['primaryKey'],
-                    'sequence' => $info['sequence'],
-                    'recordId' => 0
-                ];
+            if (isset($instance)) {
+                $this->database = $instance;
             } else {
-                throw new ModelException("^^[Table could not be found.]^^");
+                $this->database = Database::getInstance();
             }
-        } catch (ModelException $e) {
-            echo $e;
+
+            if (! $this->database) {
+                throw new \Exception('');
+            }
+            // Set table configuration
+            if (! $this->config) {
+                $this->setConfig($tableName);
+            }
+
+            // Make it a object
+            $this->config = (object) $this->config;
+
+            return $this;
+        } catch (\Exception $e) {
+            \bossanova\Error\Error::handler('There is no database connection available.', $e);
         }
     }
 
@@ -92,7 +75,9 @@ class Model extends \stdClass
                 ->select()
                 ->execute();
 
-            $data = $this->database->fetch_assoc($result);
+            if ($row = $this->database->fetch_assoc($result)) {
+                $data = $row;
+            }
         }
 
         return $data;
@@ -316,6 +301,15 @@ class Model extends \stdClass
         return $id;
     }
 
+    public function getLastId($seq = null)
+    {
+        if (! $seq && $this->config->sequence) {
+            $seq = $this->config->sequence;
+        }
+
+        return $this->database->insert_id($seq);
+    }
+
     public function getNextId($seq = null)
     {
         if (! $seq && $this->config->sequence) {
@@ -437,6 +431,16 @@ class Model extends \stdClass
     }
 
     /**
+     * Cache
+     *
+     * @return string table primary key
+     */
+    public function cache($k, $v)
+    {
+        return false;
+    }
+
+    /**
      * Return the main information from a given table
      *
      * @param  string
@@ -465,12 +469,29 @@ class Model extends \stdClass
     }
 
     /**
-     * Return if the session is from a superuser
+     * Set model configuration
      *
-     * @return bool superuser
+     * @return integer last inserted id, sequence or record id
      */
-    protected function isSuperuser()
+    private function setConfig($tableName = null)
     {
-        return isset($_SESSION['superuser']) && $_SESSION['superuser'] ? true : false;
+        try {
+            // Table name
+            $tableName = ($tableName) ? $tableName : strtolower(str_replace('models\\', '', get_class($this)));
+
+            // Looing for the table information
+            if ($info = $this->getTableInfo($tableName)) {
+                $this->config = (object) [
+                    'tableName' => $tableName,
+                    'primaryKey' => $info['primaryKey'],
+                    'sequence' => $info['sequence'],
+                    'recordId' => 0
+                ];
+            } else {
+                throw new ModelException("^^[Table could not be found.]^^");
+            }
+        } catch (ModelException $e) {
+            echo $e;
+        }
     }
 }

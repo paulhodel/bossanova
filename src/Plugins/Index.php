@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -14,7 +14,6 @@
 namespace bossanova\Plugins;
 
 use bossanova\Render\Render;
-use bossanova\Database\Database;
 
 class Index
 {

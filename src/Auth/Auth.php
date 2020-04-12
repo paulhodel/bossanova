@@ -77,12 +77,12 @@ class Auth
                         // Recovery process
                         $data = $this->loginHash($this->getRequest('h'));
                     } else if ($this->getPost('h')) {
-                        if ($this->getPost('password')) {
+                        if (! $this->getPost('password')) {
+                            // Hash validation
+                            $data = $this->loginHash($this->getPost('h'));
+                        } else {
                             // Change password step
                             $data = $this->updatePassword($this->getPost('h'));
-                        } else {
-                            // Recovery process
-                            $data = $this->loginHash($this->getPost('h'));
                         }
                     } else if ($this->getRequest('f')) {
                         // Facebook token to be analised
@@ -364,7 +364,6 @@ class Auth
                         'message' => $row['user_status'] == 2 ? '^^[This is your first access, please select a new password]^^' : '^^[Your password is expired. Please pick a new one]^^',
                         'action' => 'resetPassword',
                         'hash' => $user->user_hash,
-                        'url' => $url
                     ];
                 }
             } else {
@@ -514,9 +513,6 @@ class Auth
         if (isset($row['user_id']) && $row['user_hash'] == $hash) {
             // Action depends on the current user status
             if ($row['user_status'] == 2) {
-                // Update hash
-                $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
-                $user->save();
                 // User activation
                 $data = [
                     'success' => 1,
@@ -525,9 +521,6 @@ class Auth
                     'hash' => $user->user_hash,
                 ];
             } else if ($row['user_status'] == 3) {
-                // Update hash
-                $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
-                $user->save();
                 // User password is expired
                 $data = [
                     'success' => 1,
@@ -660,7 +653,7 @@ class Auth
         } else {
             $data = [
                 'error' => 1,
-                'message' => "^^[Please try to reset your password again]^^",
+                'message' => "^^[Invalid code. If you don't have a valid code, please try to reset your password again]^^",
             ];
         }
 

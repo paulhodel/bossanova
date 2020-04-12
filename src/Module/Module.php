@@ -226,7 +226,7 @@ class Module
 
         // Deal with the authetantion service return
         if (Render::isAjax()) {
-            $data = $this->jsonEncode($data);
+            return $this->jsonEncode($data);
         } else {
             if (isset($data['url'])) {
                 $this->redirect($data['url'], $data);
@@ -236,8 +236,6 @@ class Module
                 }
             }
         }
-
-        return $data;
     }
 
     /**
@@ -301,7 +299,7 @@ class Module
                 $message = [ 'message' => $message ];
             }
 
-            Render::$configuration['message'] = json_encode($message);
+            Render::setMessage(json_encode($message));
         }
     }
 

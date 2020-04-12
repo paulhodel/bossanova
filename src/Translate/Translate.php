@@ -59,12 +59,12 @@ class Translate
      */
     public static function run($buffer, $locale = null, $clearCache = false)
     {
-        if (! $locale) {
-            return $buffer;
+        if ($locale) {
+            // Load file
+            $dictionary = self::loadfile($locale, $clearCache);
+        } else {
+            $dictionary = [];
         }
-
-        // Load file
-        $dictionary = self::loadfile($locale, $clearCache);
 
         // Processing buffer
         $result = '';

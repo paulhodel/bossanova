@@ -589,6 +589,16 @@ class Render
         return $contents;
     }
 
+    /**
+     * Set a message from backend to the frontend
+     *
+     * @param  string $message message
+     * @return void
+     */
+    public static function setMessage($message)
+    {
+        self::$configuration['message'] = $message;
+    }
 
     /**
      * Set the configuration based on config or in a record save in the route table

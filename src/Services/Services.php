@@ -27,6 +27,8 @@ class Services
         if (isset($model)) {
             $this->model = $model;
         }
+
+        return $this;
     }
 
     /**

@@ -489,7 +489,7 @@ class Auth
     private function loginRecovery()
     {
         // Username
-        $username = $_POST['username'];
+        $username = strtolower($_POST['username']);
 
         // Load user information
         $user = new \models\Users();
@@ -503,7 +503,7 @@ class Auth
             ];
         } else {
             // Check the user status
-            if ($row['user_status'] > 0 && ($row['user_login'] == $username || $row['user_email'] == $username)) {
+            if ($row['user_status'] > 0 && (strtolower($row['user_login']) == $username || strtolower($row['user_email']) == $username)) {
                 // Code
                 $row['recover_id'] = substr(uniqid(mt_rand(), true), 0, 6);
 

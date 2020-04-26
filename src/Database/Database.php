@@ -785,7 +785,7 @@ class Database
 
             if (isset($this->query['params'])) {
                 foreach ($this->query['params'] as $k => $v) {
-                    $result->bindParam($k, $v);
+                    $result->bindValue(":$k", $v);
                 }
             }
 

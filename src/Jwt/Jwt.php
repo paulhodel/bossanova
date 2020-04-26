@@ -159,6 +159,8 @@ class Jwt extends \stdClass
         } else if (isset($_SERVER['HTTP_AUTHORIZATION']) && $_SERVER['HTTP_AUTHORIZATION']) {
             $bearer = explode(' ', $_SERVER['HTTP_AUTHORIZATION']);
             $webToken = $bearer[1];
+        } else {
+            $webToken = false;
         }
 
         return $webToken;

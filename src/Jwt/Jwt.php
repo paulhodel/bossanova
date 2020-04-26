@@ -154,11 +154,11 @@ class Jwt extends \stdClass
     }
 
     private function getPostedToken() {
-        $webToken = isset($_COOKIE[$this->key]) && $_COOKIE[$this->key] ? $_COOKIE[$this->key] : null;
-
-        if (! $webToken && isset($_SERVER['HTTP_AUTHORIZATION'])) {
-            $webToken = explode(' ', $_SERVER['HTTP_AUTHORIZATION']);
-            $webToken = $webToken[1];
+        if (isset($_COOKIE[$this->key]) && strlen($_COOKIE[$this->key]) > 64) {
+            $webToken = $_COOKIE[$this->key];
+        } else if (isset($_SERVER['HTTP_AUTHORIZATION']) && $_SERVER['HTTP_AUTHORIZATION']) {
+            $bearer = explode(' ', $_SERVER['HTTP_AUTHORIZATION']);
+            $webToken = $bearer[1];
         }
 
         return $webToken;

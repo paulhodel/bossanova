@@ -427,7 +427,10 @@ class Auth
                 // Send instructions email to the user
                 try {
                     if (! isset($this->mail) || ! $this->mail) {
-                        $this->mail = new Mail;
+                        // Get preferable mail adapter
+                        $adapter = Config::get('mail');
+                        // Create instance
+                        $this->mail = new Mail($adapter);
                     }
                     // Prepare the content
                     $content = file_get_contents($filename);

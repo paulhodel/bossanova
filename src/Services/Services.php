@@ -15,7 +15,7 @@ namespace bossanova\Services;
 
 use bossanova\Model\Model;
 use bossanova\Mail\Mail;
-use bossanova\Mail\AdapterPhpmailer AS Adapter;
+use bossanova\Config\Config;
 
 class Services
 {
@@ -151,7 +151,10 @@ class Services
     public function sendmail($to, $subject, $html, $from, $files = null)
     {
         if (! $this->mail) {
-            $this->mail = new Mail(new Adapter());
+            // Get preferable mail adapter
+            $adapter = Config::get('mail');
+            // Create instance
+            $this->mail = new Mail($adapter);
         }
 
         ob_start();

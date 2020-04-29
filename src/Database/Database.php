@@ -15,6 +15,7 @@ namespace bossanova\Database;
 
 use bossanova\Mail\Mail;
 use bossanova\Model\Model;
+use bossanova\Config\Config;
 
 class Database
 {
@@ -833,8 +834,11 @@ class Database
                         // Preparent email content
                         $text = $this->query['query'] . "<br>\n($t)<br>\n". $row[1] . " " . $row[2] . "$debug_text\n";
 
+                        // Get preferable mail adapter
+                        $adapter = Config::get('mail');
+                        // Create instance
+                        $mail = new Mail($adapter);
                         // Send debug email
-                        $mail = new Mail();
                         $mail->sendmail($email, "Bossanova::debug ($server)", "$text", $email);
                     }
                 }

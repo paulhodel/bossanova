@@ -19,13 +19,13 @@ use bossanova\Database\Database;
 use bossanova\Services\Services;
 use bossanova\Redis\Redis;
 use bossanova\Mail\Mail;
-use bossanova\Mail\AdapterPhpmailer AS Adapter;
 use bossanova\Common\Post;
 use bossanova\Common\Request;
 use bossanova\Common\Ident;
 use bossanova\Common\Configuration;
 use bossanova\Common\Params;
 use bossanova\View\View;
+use bossanova\Config\Config;
 
 class Module
 {
@@ -201,7 +201,10 @@ class Module
     public function sendmail($to, $subject, $html, $from, $files = null)
     {
         if (! $this->mail) {
-            $this->mail = new Mail(new Adapter());
+            // Get preferable mail adapter
+            $adapter = Config::get('mail');
+            // Create instance
+            $this->mail = new Mail($adapter);
         }
 
         ob_start();

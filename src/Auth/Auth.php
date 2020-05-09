@@ -269,6 +269,7 @@ class Auth
         $token = $jwt->set([
             'domain' => Render::getDomain(),
             'user_id' => $row['user_id'],
+            'user_login' => $row['user_login'],
             'parent_id' => $row['parent_id'],
             'permission_id' => $row['permission_id'],
             'locale' => $row['user_locale'],

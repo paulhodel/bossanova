@@ -151,10 +151,10 @@ class Services
      *
      * @return void
      */
-    public function sendmail($to, $subject, $html, $from, $files = null)
+    public function sendmail($to, $subject, $html, $from, $files = null, $bcc = null)
     {
         ob_start();
-        $instance = $this->mail->sendmail($to, $subject, $html, $from, $files);
+        $instance = $this->mail->sendmail($to, $subject, $html, $from, $files, $bcc);
         $result = ob_get_clean();
 
         return $instance;

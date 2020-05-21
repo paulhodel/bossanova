@@ -407,14 +407,14 @@ class Module
      *
      * @return void
      */
-    protected function sendmail($to, $subject, $html, $from, $files = null)
+    protected function sendmail($to, $subject, $html, $from, $files = null, $bcc = null)
     {
         if (! $this->mail) {
             $this->mail = new Mail();
         }
 
         ob_start();
-        $instance = $this->mail->sendmail($to, $subject, $html, $from, $files);
+        $instance = $this->mail->sendmail($to, $subject, $html, $from, $files, $bcc);
         $result = ob_get_clean();
 
         return $instance;

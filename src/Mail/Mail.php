@@ -55,7 +55,7 @@ class Mail
      *
      * @return void
      */
-    public function sendmail($to, $subject, $html, $from, $files = null)
+    public function sendmail($to, $subject, $html, $from, $files = null, $bcc = null)
     {
         // Configuration
         $config = array();
@@ -86,6 +86,19 @@ class Mail
                 }
             } else {
                 $this->adapter->addTo($to);
+            }
+
+            if (is_array($bcc)) {
+                foreach ($bcc as $k => $v) {
+                    // Set who the message is to be sent to
+                    if (is_array($v)) {
+                        $this->adapter->addBCC($v[0], $v[1]);
+                    } else {
+                        $this->adapter->addBCC($v);
+                    }
+                }
+            } else {
+                $this->adapter->addBCC($bcc);
             }
 
             if (is_array($from)) {

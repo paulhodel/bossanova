@@ -41,6 +41,11 @@ class AdapterSendgrid implements MailService
         $this->personalization->addTo($email, $name);
     }
 
+    public function addBCC($email, $name = null)
+    {
+        $this->personalization->addBCC($email, $name);
+    }
+
     public function setFrom($email, $name = null)
     {
         $this->personalization->setFrom($email, $name);

@@ -64,6 +64,11 @@ class AdapterPhpmailer implements MailService
         $this->instance->addAddress($email, $name);
     }
 
+    public function addBCC($email, $name = null)
+    {
+        $this->instance->addBCC($email, $name);
+    }
+
     public function addAddress($email, $name = null)
     {
         $this->instance->addAddress($email, $name);

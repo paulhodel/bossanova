@@ -19,6 +19,8 @@ interface MailService
 
     public function addTo($email, $name = null);
 
+    public function addBCC($email, $name = null);
+
     public function addAddress($email, $name = null);
 
     public function setFrom($email, $name);

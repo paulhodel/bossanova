@@ -61,7 +61,7 @@ class Dictionary
                     // Searching in a subfolder
                     if (is_dir($folder . '/' . $file)) {
                         if (($file != 'dev') && ($file != 'bin') && ($file != 'doc') && ($file != 'img')) {
-                            $words = array_merge($words, $this->search_dir($folder . '/' . $file));
+                            $words = array_merge($words, $this->searchFolder($folder . '/' . $file));
                         }
                     } else {
                         // Merging results

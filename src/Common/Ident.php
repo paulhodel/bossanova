@@ -13,11 +13,17 @@
  */
 namespace bossanova\Common;
 
-use bossanova\Jwt\Jwt;
-
 Trait Ident
 {
-    public $jwt = null;
+    /**
+     * Get the registered user_id
+     *
+     * @return integer $user_id
+     */
+    public function getIdent()
+    {
+        return $this->auth->getIdent();
+    }
 
     /**
      * Get the registered user_id
@@ -26,11 +32,7 @@ Trait Ident
      */
     public function getUser()
     {
-        if (! $this->jwt) {
-            $this->jwt = new Jwt();
-        }
-
-        return isset($this->jwt->user_id) ? $this->jwt->user_id : null;
+        return $this->auth->getUser();
     }
 
     /**
@@ -40,11 +42,7 @@ Trait Ident
      */
     public function getParentUser()
     {
-        if (! $this->jwt) {
-            $this->jwt = new Jwt();
-        }
-
-        return isset($this->jwt->parent_id) ? $this->jwt->parent_id : null;
+        return $this->auth->getParentUser();
     }
 
     /**
@@ -54,11 +52,7 @@ Trait Ident
      */
     public function getGroup()
     {
-        if (! $this->jwt) {
-            $this->jwt = new Jwt();
-        }
-
-        return isset($this->jwt->permission_id) ? $this->jwt->permission_id : null;
+        return $this->auth->getGroup();
     }
 
     /**
@@ -68,11 +62,7 @@ Trait Ident
      */
     public function getPermissions()
     {
-        if (! $this->jwt) {
-            $this->jwt = new Jwt();
-        }
-
-        return isset($this->jwt->permissions) ? $this->jwt->permissions : null;
+        return $this->auth->getPermissions();
     }
 
     /**
@@ -80,11 +70,7 @@ Trait Ident
      */
     public function getPermission($route)
     {
-        if (! $this->jwt) {
-            $this->jwt = new Jwt();
-        }
-
-        return $this->isAuthorized($route);
+        return $this->auth->isAuthorized($route);
     }
 
     /**
@@ -92,16 +78,7 @@ Trait Ident
      */
     public function isAuthorized($route)
     {
-        if (! $this->jwt) {
-            $this->jwt = new Jwt();
-        }
-
-        if (isset($this->jwt->permissions) && $this->jwt->permissions) {
-            return property_exists($this->jwt->permissions, $route)
-                ? true : false;
-        } else {
-            return false;
-        }
+        return $this->auth->isAuthorized($route);
     }
 
     /**
@@ -111,11 +88,7 @@ Trait Ident
      */
     public function getLocale()
     {
-        if (! $this->jwt) {
-            $this->jwt = new Jwt();
-        }
-
-        return isset($this->jwt->locale) ? $this->jwt->locale : null;
+        return $this->auth->getLocale();
     }
 
     /**
@@ -125,13 +98,16 @@ Trait Ident
      */
     public function setLocale($locale)
     {
-        if (! $this->jwt) {
-            $this->jwt = new Jwt();
-        }
+        $this->auth->setLocale($locale);
+    }
 
-        if (isset($this->jwt->user_id) && $this->jwt->user_id) {
-            $this->jwt->locale = $locale;
-            $this->jwt->save();
-        }
+    /**
+     * Logout actions
+     *
+     * @return void
+     */
+    public function logout()
+    {
+        return $this->auth->logout();
     }
 }

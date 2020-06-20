@@ -71,6 +71,9 @@ class Module
             REDIS_CONFIG_HOST,
             REDIS_CONFIG_PORT
         ]);
+
+        // Auth
+        $this->auth = new Auth();
     }
 
     /**
@@ -121,14 +124,7 @@ class Module
                     // Update the session language reference
                     $this->setLocale($locale);
 
-                    // If the user is defined update the user preferences in the table
-                    if ($this->getUser()) {
-                        $user = new \models\Users;
-                        $user->get($this->getUser());
-                        $user->user_locale = $locale;
-                        $user->save();
-                    }
-
+                    // Redirect to the main module
                     $url = $this->getParam(0);
 
                     // Redirect to the main page
@@ -221,10 +217,6 @@ class Module
      */
     public function login()
     {
-        if (! $this->auth) {
-            $this->auth = new Auth();
-        }
-
         $data = $this->auth->login();
 
         // Deal with the authetantion service return
@@ -239,34 +231,6 @@ class Module
                 }
             }
         }
-    }
-
-    /**
-     * Logout actions
-     *
-     * @return void
-     */
-    public function logout()
-    {
-        if (! $this->auth) {
-            $this->auth = new Auth();
-        }
-
-        return $this->auth->logout();
-    }
-
-    /**
-     * Get the registered user_id
-     *
-     * @return integer $user_id
-     */
-    public function getIdent()
-    {
-        if (! $this->auth) {
-            $this->auth = new Auth();
-        }
-
-        return $this->auth->getIdent();
     }
 
     /**

@@ -13,6 +13,7 @@
  */
 namespace bossanova\View;
 
+use bossanova\Auth\Auth;
 use bossanova\Common\Ident;
 use bossanova\Common\Params;
 use bossanova\Common\Post;
@@ -33,6 +34,9 @@ class View
         if ($view) {
             $this->view = $view;
         }
+
+        // Auth
+        $this->auth = new Auth();
     }
 
     public function render($viewPath = null)

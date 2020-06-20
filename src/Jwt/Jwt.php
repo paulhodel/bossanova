@@ -22,7 +22,7 @@ class Jwt extends \stdClass
     /**
      * Authentication controls
      */
-    public function __construct($jwtKey = null)
+    final public function __construct($jwtKey = null)
     {
         // Set custom key
         if (isset($jwtKey) && $jwtKey) {
@@ -58,7 +58,7 @@ class Jwt extends \stdClass
         return $this;
     }
 
-    public function set($data)
+    final public function set($data)
     {
         foreach ($data as $k => $v) {
             $this->{$k} = $v;
@@ -67,7 +67,7 @@ class Jwt extends \stdClass
         return $this;
     }
 
-    public function save()
+    final public function save()
     {
         // Expires
         $expires = time() + 86400 * 3;
@@ -79,6 +79,11 @@ class Jwt extends \stdClass
         header("Set-Cookie: {$this->key}={$token}; path=/; SameSite=Lax; expires={$expires};");
 
         return $token;
+    }
+
+    final public function sign($str)
+    {
+        return $this->base64_encode(hash_hmac('sha512', $str, BOSSANOVA_JWT_SECRET, true));
     }
 
     private function setToken($data)
@@ -94,9 +99,7 @@ class Jwt extends \stdClass
         $data = $this->base64_encode(json_encode($data));
 
         // Signature
-        $signature = $this->base64_encode(hash_hmac(
-            'sha512', $header . '.' . $data, BOSSANOVA_JWT_SECRET, true)
-        );
+        $signature = $this->sign($header . '.' . $data);
 
         // Token
         return ($header . '.' . $data . '.' .  $signature);
@@ -128,9 +131,7 @@ class Jwt extends \stdClass
                 // Body
                 $body = $webToken[0] . '.' . $webToken[1];
                 // Signature
-                $signature = $this->base64_encode(hash_hmac(
-                    'sha512', $body, BOSSANOVA_JWT_SECRET, true));
-
+                $signature = $this->sign($body);
                 // Verify
                 if ($signature === $webToken[2]) {
                     // Valid token

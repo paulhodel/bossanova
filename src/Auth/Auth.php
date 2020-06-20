@@ -19,12 +19,12 @@ use bossanova\Mail\Mail;
 use bossanova\Common\Wget;
 use bossanova\Common\Post;
 use bossanova\Common\Request;
-use bossanova\Common\Ident;
+use bossanova\Redis\Redis;
 use bossanova\Jwt\Jwt;
 
 class Auth
 {
-    use Ident, Wget, Post, Request;
+    use Wget, Post, Request;
 
     /**
      * Login actions (login and password recovery)
@@ -164,6 +164,14 @@ class Auth
             $user->save();
         }
 
+        // Remove hash
+        if (class_exists('Redis')) {
+            if ($redis = Redis::getInstance()) {
+                // Save signature
+                $redis->set('hash' . $user_id, '');
+            }
+        }
+
         return $data;
     }
 
@@ -265,6 +273,9 @@ class Auth
         // Jwt
         $jwt = new Jwt;
 
+        // Signature
+        $signature = hash('sha512', uniqid(mt_rand(), true));
+
         // Payload
         $token = $jwt->set([
             'domain' => Render::getDomain(),
@@ -276,11 +287,20 @@ class Auth
             'expiration' => time(),
             'permissions' => $permissions->getPermissionsById($row['permission_id']),
             'country_id' => isset($row['country_id']) && $row['country_id'] ? $row['country_id'] : 0,
+            'hash' => $jwt->sign($signature)
         ])->save();
 
         // Access log
         if (defined('BOSSANOVA_LOG_USER_ACCESS')) {
             $this->accessLog($row);
+        }
+
+        // Redis
+        if (class_exists('Redis')) {
+            if ($redis = Redis::getInstance()) {
+                // Save signature
+                $redis->set('hash' . $row['user_id'], $signature);
+            }
         }
 
         return $token;
@@ -876,19 +896,6 @@ class Auth
     }
 
     /**
-     * Set the user initial locale
-     *
-     * @param  string $locale Locale file, must be available at resources/locale/[string].csv
-     * @return void
-     */
-    private function setLocale($locale)
-    {
-        if (file_exists("resources/locales/$locale.csv")) {
-            return $locale;
-        }
-    }
-
-    /**
      * Validations - TODO: implement redis as alternative to sessions
      */
     private function getValidation()
@@ -906,5 +913,134 @@ class Auth
         $_SESSION['bossanovaValidation'] = $validation;
 
         return true;
+    }
+
+    /**
+     * Get Jwt and validate
+     * @return $jwt
+     */
+    private function jwt()
+    {
+        // Get JWT
+        $jwt = new Jwt();
+
+        // Redis
+        if (isset($jwt->hash) && $jwt->hash) {
+            if (class_exists('Redis')) {
+                if ($redis = Redis::getInstance()) {
+                    // Get signature
+                    $hash = $jwt->sign($redis->get('hash' . $jwt->user_id));
+
+                    if ($hash !== $jwt->hash) {
+                        return null;
+                    }
+                }
+            }
+        }
+
+        return $jwt;
+    }
+
+    /**
+     * Get the registered user_id
+     *
+     * @return integer
+     */
+    public function getUser()
+    {
+        $jwt = $this->jwt();
+
+        return isset($jwt->user_id) ? $jwt->user_id : null;
+    }
+
+    /**
+     * Get the registered parent_id
+     *
+     * @return integer
+     */
+    public function getParentUser()
+    {
+        $jwt = $this->jwt();
+
+        return isset($jwt->parent_id) ? $jwt->parent_id : null;
+    }
+
+    /**
+     * Get the registered permission_id
+     *
+     * @return integer
+     */
+    public function getGroup()
+    {
+        $jwt = $this->jwt();
+
+        return isset($jwt->permission_id) ? $jwt->permission_id : null;
+    }
+
+    /**
+     * Get the registered scope
+     *
+     * @return array
+     */
+    public function getPermissions()
+    {
+        $jwt = $this->jwt();
+
+        return isset($jwt->permissions) ? $jwt->permissions : null;
+    }
+
+    /**
+     * Alias for isAuthorized
+     */
+    public function getPermission($route)
+    {
+        return $this->isAuthorized($route);
+    }
+
+    /**
+     * Check if is a user is authorized based on the route
+     */
+    public function isAuthorized($route)
+    {
+        $jwt = $this->jwt();
+
+        if (isset($jwt->permissions) && $jwt->permissions) {
+            return property_exists($jwt->permissions, $route) ? true : false;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Get the registered locale
+     *
+     * @return integer
+     */
+    public function getLocale()
+    {
+        $jwt = $this->jwt();
+
+        return isset($jwt->locale) ? $jwt->locale : null;
+    }
+
+    /**
+     * Get the registered locale
+     *
+     * @return integer
+     */
+    public function setLocale($locale)
+    {
+        $jwt = $this->jwt();
+
+        if (isset($jwt->user_id) && $jwt->user_id) {
+            $jwt->locale = $locale;
+            $jwt->save();
+
+            // Save the information in the database
+            $user = new \models\Users;
+            $user->get($jwt->user_id);
+            $user->user_locale = $locale;
+            $user->save();
+        }
     }
 }

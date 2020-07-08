@@ -524,8 +524,8 @@ class Render
                 if (isset($extra_config[$k]->module_name)) {
                     $extra_config[$k]->module_name = ucfirst(strtolower($extra_config[$k]->module_name));
                 }
-                if (isset($extra_config[$k]->controller_name)) {
-                    $extra_config[$k]->controller_name = ucfirst(strtolower($extra_config[$k]->controller_name));
+                if (isset($extra_config[$k]->module_controller)) {
+                    $extra_config[$k]->module_controller = ucfirst(strtolower($extra_config[$k]->module_controller));
                 }
 
                 // Area
@@ -541,9 +541,9 @@ class Render
                     $module_name = $extra_config[$k]->module_name;
 
                     // Check information about the module call
-                    if (isset($extra_config[$k]->controller_name) && $extra_config[$k]->controller_name) {
+                    if (isset($extra_config[$k]->module_controller) && $extra_config[$k]->module_controller) {
                         // It is a controlle?
-                        $cn = "modules\\{$module_name}\\controllers\\" . $extra_config[$k]->controller_name;
+                        $cn = "modules\\{$module_name}\\controllers\\" . $extra_config[$k]->module_controller;
                         if (class_exists($cn)) {
                             if (! isset(self::$classInstance[$cn])) {
                                 self::$classInstance[$cn] = new $cn();

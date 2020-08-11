@@ -255,6 +255,28 @@ class Module
     }
 
     /**
+     * Referer
+     */
+    public function setReferer($url = null)
+    {
+        if (! $url) {
+            $url = implode('/', $this->getParam());
+        }
+        // Expire in 1 hour
+        $expires = time() + 3600;
+        header("Set-Cookie: bossanova_referer={$url}; path=/; SameSite=Lax; expires={$expires};");
+    }
+
+    public function getReferer($clear = true)
+    {
+        if ($clear) {
+            header("Set-Cookie: bossanova_referer=0; path=/; SameSite=Lax; expires=0;");
+        }
+
+        return isset($_COOKIE['bossanova_referer']) && $_COOKIE['bossanova_referer'] ? $_COOKIE['bossanova_referer'] : '';
+    }
+
+    /**
      * Message from backend to frontend
      *
      * @return integer $permission_id

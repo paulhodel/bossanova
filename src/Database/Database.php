@@ -256,7 +256,7 @@ class Database
      * @param  mixed $column string for Select or array for Insert and Updates
      * @return void
      */
-    public function column($column, $filter)
+    public function column($column, $filter = false)
     {
         if ($filter == true) {
             $column = $this->bind($column);

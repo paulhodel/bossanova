@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -9,12 +9,11 @@
  * @license  The MIT License (MIT)
  * @link     https://bossanova.uk/php-framework
  *
- * Plugins Social Network Names
+ * CMS Plugin
  */
 namespace bossanova\Plugins;
 
 use bossanova\Render\Render;
-use bossanova\Database\Database;
 
 class Nodes
 {

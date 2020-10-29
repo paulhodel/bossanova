@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -39,11 +39,6 @@ class AdapterSendgrid implements MailService
     public function addAddress($email, $name = null)
     {
         $this->personalization->addTo($email, $name);
-    }
-
-    public function addBCC($email, $name = null)
-    {
-        $this->personalization->addBCC($email, $name);
     }
 
     public function setFrom($email, $name = null)

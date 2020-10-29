@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -62,11 +62,6 @@ class AdapterPhpmailer implements MailService
     public function addTo($email, $name = null)
     {
         $this->instance->addAddress($email, $name);
-    }
-
-    public function addBCC($email, $name = null)
-    {
-        $this->instance->addBCC($email, $name);
     }
 
     public function addAddress($email, $name = null)

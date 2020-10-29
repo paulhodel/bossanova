@@ -13,12 +13,12 @@
  */
 namespace bossanova\Translate;
 
-use bossanova\Error\Error;
+use bossanova\Redis\Redis;
 
 class Translate
 {
-    // Keep the same instance all over the PHP scripting
-    public static $instance = null;
+    // Default locale
+    public static $locale = 'en_GB';
 
     /**
      * Start the output buffering with the callback function
@@ -27,125 +27,28 @@ class Translate
      * @param integer $severity One of the pre-defined severity constants
      * @return void
      */
-    public function __construct()
+    public static function start($locale = null)
     {
-        if (!self::$instance) {
-            self::$instance = $this;
-            // Callback for the translation
-            ob_start(function($b) {
-                // Skip translations in case of binary files
-                $matches = headers_list();
-                $matches = array_values(preg_grep('/^Content-type: (\w+)/i', headers_list()));
-                if (isset($matches[0])) {
-                    preg_match('/^Content-type: (\w+)/i', $matches[0], $result);
-                }
-                // Translate only the text content
-                if (isset($result[1]) && $result[1] != 'text') {
-                    return $b;
-                } else {
-                    return $this->run($b);
-                }
-            });
+        if (isset($locale) && $locale) {
+           self::$locale = $locale;
         }
 
-        return self::$instance;
-    }
-
-    // Cannot be clonned
-    private function __clone()
-    {
-    }
-
-    /**
-     * Load dictionary information, index and cache usign APC.
-     *
-     * @param string $locale dicionary name.
-     * @return void
-     */
-    public function load($locale)
-    {
-        // Loading dictionary and caches everything
-
-        try {
-            // New dictionary to be loaded?
-            if (!isset($_SESSION['locale']) || $_SESSION['locale'] != $locale) {
-                // Remove any dictionary from the session
-                unset($_SESSION['dictionary']);
-                unset($_SESSION['locale']);
+        // Callback for the translation
+        ob_start(function($b) {
+            // Skip translations in case of binary files
+            $matches = headers_list();
+            $matches = array_values(preg_grep('/^Content-type: (\w+)/i', headers_list()));
+            if (isset($matches[0])) {
+                preg_match('/^Content-type: (\w+)/i', $matches[0], $result);
             }
 
-            // Assembly dictionary
-            if (!isset($_SESSION['dictionary']) || !$_SESSION['dictionary'] || !count($_SESSION['dictionary'])) {
-                // Check if the language file exists
-                if (file_exists("resources/locales/{$locale}.csv")) {
-                    // Open the file and load all words in memory
-                    $dictionary = $this->loadfile($locale);
-
-                    if (count($dictionary)) {
-                        // Keep dictionary in the session
-                        $_SESSION['dictionary'] = $dictionary;
-                        $_SESSION['locale'] = $locale;
-                    }
-                } else {
-                    if (isset($_SESSION['locale'])) {
-                        unset($_SESSION['locale']);
-                    }
-
-                    throw new \Exception("Locale file not found " . "resources/locales/{$locale}.csv");
-                }
+            // Translate only the text content
+            if (isset($result[1]) && $result[1] != 'text') {
+                return $b;
+            } else {
+                return self::run($b, self::$locale);
             }
-        } catch (\Exception $e) {
-            Error::handler("Translation error", $e);
-        }
-    }
-
-    /**
-     * Load dictionary information, index and cache usign APC.
-     *
-     * @param string $locale dicionary name.
-     * @return void
-     */
-    public function loadfile($locale)
-    {
-        // Open the file and load all words in memory
-        $dictionary = array();
-
-        if (file_exists("resources/locales/{$locale}.csv")) {
-            $dic = fopen("resources/locales/{$locale}.csv", "r");
-
-            while (!feof($dic)) {
-                // Open word index and translate word
-                $buffer = fgets($dic);
-                $buffer = explode("|", $buffer);
-
-                if ($buffer[0]) {
-                    // Make sure to remove all white spaces and create a index based on the hash
-                    $val = isset($buffer[1]) && trim($buffer[1]) ? $buffer[1] : $buffer[0];
-                    $dictionary[md5(trim($buffer[0]))] = trim($val);
-                }
-            }
-
-            fclose($dic);
-        }
-
-        return $dictionary;
-    }
-    /**
-     * Reload dictionary information, index and cache usign APC.
-     *
-     * @param string $locale dictionary name.
-     * @return void
-     */
-    public function reload($locale)
-    {
-        // Unset any dictionary from the session
-        unset($_SESSION['dictionary']);
-
-        // Unset locale
-        unset($_SESSION['locale']);
-
-        // Reload again
-        $this->load($locale);
+        });
     }
 
     /**
@@ -154,12 +57,13 @@ class Translate
      * @param string $buffer Output buffer
      * @return string $result Return buffer with all translations
      */
-    public function run($buffer, $locale = null)
+    public static function run($buffer, $locale = null, $clearCache = false)
     {
-        if (! isset($locale)) {
-            $dictionary = isset($_SESSION['dictionary']) ? $_SESSION['dictionary'] : [];
+        if ($locale) {
+            // Load file
+            $dictionary = self::loadfile($locale, $clearCache);
         } else {
-            $dictionary = $this->loadfile($locale);
+            $dictionary = [];
         }
 
         // Processing buffer
@@ -238,126 +142,54 @@ class Translate
     }
 
     /**
-     * Mapping all translation references
+     * Load dictionary information, index and cache usign APC.
      *
+     * @param string $locale dicionary name.
+     * @return void
      */
-    public function search()
+    public static function loadfile($locale, $clearCache = false)
     {
-        $words = $this->searchFolder('models');
-        foreach ($words as $k => $v) {
-            echo "$v|\n";
-        }
+        $dictionary = [];
 
-        $words = $this->searchFolder('modules');
-        foreach ($words as $k => $v) {
-            echo "$v|\n";
-        }
-
-        $words = $this->searchFolder('services');
-        foreach ($words as $k => $v) {
-            echo "$v|\n";
-        }
-
-        // Search templates
-        $words = $this->searchFolder('templates');
-        foreach ($words as $k => $v) {
-            echo "$v|\n";
-        }
-    }
-
-    /**
-     * Search dir by dir all files looking for texts to be translates
-     *
-     * @param string $buffer Output buffer
-     * @return string $result Return buffer with all translations
-     */
-    private function searchFolder($folder)
-    {
-        // Keep all to be translated text references
-        $words = array();
-
-        // Search all folders reading all files
-        if ($dh = opendir($folder)) {
-            while (false !== ($file = readdir($dh))) {
-                if (substr($file, 0, 1) != '.') {
-                    // Searching in a subfolder
-                    if (is_dir($folder . '/' . $file)) {
-                        if (($file != 'dev') && ($file != 'bin') && ($file != 'doc') && ($file != 'img')) {
-                            $words = array_merge($words, $this->search_dir($folder . '/' . $file));
-                        }
-                    } else {
-                        // Merging results
-                        $words = array_merge($words, $this->getWords(file_get_contents($folder . '/' . $file)));
-                    }
+        if (class_exists('Redis') && ! $clearCache) {
+            if ($redis = Redis::getInstance()) {
+                if ($data = $redis->get('dictionary')) {
+                    $data = json_decode($data, true);
+                    $currentLocale = $data[0];
+                    $dictionary = $data[1];
                 }
             }
-
-            // Close resource
-            closedir($dh);
         }
 
-        return $words;
-    }
+        // Open the file and load all words in memory
+        if ((! isset($dictionary) || ! $dictionary) || ($locale != $currentLocale)) {
+            if (file_exists("resources/locales/{$locale}.csv")) {
+                $dic = fopen("resources/locales/{$locale}.csv", "r");
 
-    /**
-     * Search for words to be translate
-     *
-     * @param string $buffer full file text
-     * @return string $result words to be translated
-     */
-    private function getWords($buffer)
-    {
-        // Processing buffer
-        $result = array();
-        $index  = '';
-        $key    = '';
+                while (!feof($dic)) {
+                    // Open word index and translate word
+                    $buffer = fgets($dic);
+                    $buffer = explode("|", $buffer);
 
-        $index_finded = 0;
-
-        for ($i = 0; $i < strlen($buffer); $i++) {
-            // Find one possible word mark
-            if (($buffer{$i} == '^') && (strlen($buffer) > $i+2)) {
-                // Check if this is a start macro, end macro (real macro to be translated)
-                if ($buffer{$i+1} == '^') {
-                    // start to counting or keep saving characters till the end of this word
-                    if ($buffer{$i+2} == '[') {
-                        $index_finded = 1;
-                        $i = $i + 3;
+                    if ($buffer[0]) {
+                        // Make sure to remove all white spaces and create a index based on the hash
+                        $val = isset($buffer[1]) && trim($buffer[1]) ? $buffer[1] : $buffer[0];
+                        $dictionary[md5(trim($buffer[0]))] = trim($val);
                     }
                 }
-            }
 
-            // Find one possible end word mark
-            if (($buffer{$i} == ']') && (strlen($buffer) > $i+2)) {
-                // Check if this is a start macro, end macro (real macro to be translated)
-                if ($buffer{$i+1} == '^') {
-                    // start to counting or keep saving characters till the end of this word
-                    if ($buffer{$i+2} == '^') {
-                        $index_finded = 0;
-                        $i = $i + 3;
-                    }
-                }
-            }
-
-            // Check the
-            if ($index_finded == 0) {
-                // Check if there any word to be processed
-                if ($index) {
-                    // Find the hash based on index
-                    $key = md5($index);
-
-                    // Keep the word
-                    $result[$key] = $index;
-
-                    // Reset the word
-                    $index = '';
-                }
+                fclose($dic);
             } else {
-                // Capturing a new word
-                $index .= $buffer{$i};
+                return false;
+            }
+
+            if (class_exists('Redis')) {
+                if ($redis) {
+                    $redis->set('dictionary', json_encode([ $locale, $dictionary ]));
+                }
             }
         }
 
-        return $result;
+        return $dictionary;
     }
 }

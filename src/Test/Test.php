@@ -9,7 +9,7 @@
  * @license  The MIT License (MIT)
  * @link     https://bossanova.uk/php-framework
  *
- * Test Library
+ * PHPUnit Test Library
  */
 namespace bossanova\Test;
 
@@ -17,11 +17,13 @@ use PHPUnit\Framework\TestCase;
 use bossanova\Render\Render;
 use bossanova\Database\Database;
 
+include_once 'config.php';
+
 class Test extends TestCase
 {
     public function __construct()
     {
-        Database::getInstance(null, [
+        $this->database = Database::getInstance(null, [
             DB_CONFIG_TYPE,
             DB_CONFIG_HOST,
             DB_CONFIG_USER,
@@ -61,5 +63,3 @@ class Test extends TestCase
         }
     }
 }
-
-include_once 'config.php';

@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -18,8 +18,6 @@ interface MailService
     public function login(array $config);
 
     public function addTo($email, $name = null);
-
-    public function addBCC($email, $name = null);
 
     public function addAddress($email, $name = null);
 

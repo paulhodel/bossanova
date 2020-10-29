@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -14,7 +14,6 @@
 namespace bossanova\Plugins;
 
 use bossanova\Render\Render;
-use bossanova\Database\Database;
 
 class Social
 {
@@ -26,8 +25,7 @@ class Social
         // Possible username
         if (strlen($userName) && $userName != '' && Render::$notFound == 1) {
             // Default module to render users
-            if (file_exists("modules/Me/Me.php") ||
-                file_exists("modules/Me/Me.class.php")) {
+            if (file_exists("modules/Me/Me.php")) {
                 // Locate route
                 $realpath = strtolower($userName);
 
@@ -53,8 +51,7 @@ class Social
                     if (isset(Render::$urlParam[1]) && $controller_name = Render::$urlParam[1]) {
                         $controller_name = ucfirst(strtolower($controller_name));
                         // Controller found with the requested route
-                        if (file_exists("modules/Me/controllers/$controller_name.php") ||
-                            file_exists("modules/Me/controllers/$controller_name.class.php")) {
+                        if (file_exists("modules/Me/controllers/$controller_name.php")) {
                             // Controller should be used
                             Render::$configuration['module_controller'] = $controller_name;
                         } else {

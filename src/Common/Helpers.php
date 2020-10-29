@@ -1,6 +1,6 @@
 <?php
 /**
- * (c) 2013 Bossanova PHP Framework 4
+ * (c) 2013 Bossanova PHP Framework 5
  * https://bossanova.uk/php-framework
  *
  * @category PHP
@@ -15,43 +15,6 @@ namespace bossanova\Common;
 
 trait Helpers
 {
-    /**
-     * This method reads and return a view content
-     *
-     * @param  string $moduleName
-     * @param  string $viewName
-     * @return string $html
-     */
-    public function loadHelperAsHtmlContainer($moduleName, $viewName, $data, $forceRefresh = true)
-    {
-        $hash = sha1($viewName . $moduleName);
-
-        if ($forceRefresh) {
-            $_SESSION['view'][$hash] = '';
-        }
-
-        // @TODO: cache this!!! change Load in case is not loaded yet
-        if (! isset($_SESSION['view'][$hash]) || ! $_SESSION['view'][$hash]) {
-            // View full path
-            $viewPath = 'modules/' . ucfirst(strtolower($moduleName)) . '/helpers/' . strtolower($viewName) . '.html';
-
-            // Call view if exists
-            if (file_exists($viewPath)) {
-                // Get content;
-                $_SESSION['view'][$hash] = file_get_contents($viewPath);
-            }
-        }
-
-        // Replace the data in the HTML container
-        $html = '';
-
-        if (isset($_SESSION['view'][$hash])) {
-            $html = $this->jTemplate($_SESSION['view'][$hash], $data);
-        }
-
-        return $html;
-    }
-
     public function jTemplate($template, $data)
     {
         $html = '';

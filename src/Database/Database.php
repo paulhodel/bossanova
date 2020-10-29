@@ -1004,11 +1004,11 @@ class Database
         $row = null;
 
         // Find primary key and keep in the session for future use
-        if (DB_CONFIG_TYPE == 'mysql') {
+        if ($this->database_type == 'mysql') {
             $this->setQuery("SHOW KEYS FROM $tableName WHERE Key_name = 'PRIMARY'");
             $result = $this->execute();
             $row = $this->fetch_assoc($result);
-        } elseif (DB_CONFIG_TYPE == 'pgsql') {
+        } else if ($this->database_type == 'pgsql') {
             $query = "SELECT * FROM information_schema.table_constraints tc
                 JOIN information_schema.constraint_column_usage AS ccu USING (constraint_schema, constraint_name)
                 JOIN information_schema.columns AS c ON c.table_schema = tc.constraint_schema
@@ -1020,6 +1020,33 @@ class Database
         }
 
         return $row;
+    }
+
+    /**
+     * Get the table information
+     *
+     * @param  string $tableName
+     * @return mixed  $tableInfo
+     */
+    public function getColumns($tableName)
+    {
+        $data = [];
+
+        // Find primary key and keep in the session for future use
+        if ($this->database_type == 'mysql') {
+            $this->setQuery("DESCRIBE $tableName");
+            $result = $this->execute();
+        } else if ($this->database_type == 'pgsql') {
+            $query = "select * from INFORMATION_SCHEMA.COLUMNS where table_name ='$tableName';";
+            $this->setQuery($query);
+            $result = $this->execute();
+        }
+
+        while ($row = $this->fetch_assoc($result)) {
+            $data[] = $row;
+        }
+
+        return $data;
     }
 
     /**

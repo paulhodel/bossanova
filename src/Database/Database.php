@@ -206,13 +206,10 @@ class Database
                     if (trim($v) === "" || trim($v) === "null") {
                         $data[$k] = "null";
                     } else {
-                        if (strtoupper($v) == 'NOW()') {
+                        if (is_numeric($v)) {
                             $data[$k] = $v;
-                        } elseif (gettype($v) == "string") {
-                            // Protection against SQL injection
-                            $data[$k] = "'". str_replace("'", "", $v) . "'";
                         } else {
-                            $data[$k] = str_replace("'", "", $v);
+                            $data[$k] = "'". str_replace("'", "''", $v) . "'";
                         }
                     }
                 }
@@ -222,14 +219,9 @@ class Database
             }
         } elseif (trim($val) === "" || trim($val) === "null") {
             $val = "null";
-        } elseif (strtoupper(trim($val)) == 'NOW()') {
-            $val = "NOW()";
         } else {
-            if (gettype($val) == "string") {
-                // Protection against SQL injection
-                $val = "'". str_replace("'", "", $val) . "'";
-            } else {
-                $val = str_replace("'", "", $val);
+            if (! is_numeric($val)) {
+                $val = "'". str_replace("'", "''", $val) . "'";
             }
         }
 
@@ -416,7 +408,7 @@ class Database
         if (is_array($mixed)) {
             foreach($mixed as $k => $v) {
                 if (is_array($v)) {
-                    $this->query['argument'][$k] = "$v[0] $v[1] $v[1]";
+                    $this->query['argument'][$k] = "$v[0] $v[2] $v[1]";
                 } else {
                     $this->query['argument'][$k] = $v;
                 }
@@ -1004,11 +996,11 @@ class Database
         $row = null;
 
         // Find primary key and keep in the session for future use
-        if ($this->database_type == 'mysql') {
+        if (DB_CONFIG_TYPE == 'mysql') {
             $this->setQuery("SHOW KEYS FROM $tableName WHERE Key_name = 'PRIMARY'");
             $result = $this->execute();
             $row = $this->fetch_assoc($result);
-        } else if ($this->database_type == 'pgsql') {
+        } elseif (DB_CONFIG_TYPE == 'pgsql') {
             $query = "SELECT * FROM information_schema.table_constraints tc
                 JOIN information_schema.constraint_column_usage AS ccu USING (constraint_schema, constraint_name)
                 JOIN information_schema.columns AS c ON c.table_schema = tc.constraint_schema

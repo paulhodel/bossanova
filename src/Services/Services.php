@@ -21,6 +21,7 @@ class Services
 {
     public $mail = null;
     public $model = null;
+    public $user_id = null;
 
     public function __construct(Model $model = null)
     {
@@ -45,6 +46,11 @@ class Services
             $data = [
                 'error' => 1,
                 'message' => '^^[Record not found]^^'
+            ];
+        } else if ($this->user_id && $this->user_id != $data['user_id']) {
+            $data = [
+                'error' => 1,
+                'message' => '^^[Permission denied]^^'
             ];
         }
 
@@ -88,7 +94,18 @@ class Services
      */
     public function update($id, $row)
     {
-        $data = $this->model->column($row)->update($id); // TODO: implementar seguranca
+        if ($this->user_id) {
+            $data = $this->model->getById($id);
+
+            if ($this->user_id != $data['user_id']) {
+                return [
+                    'error' => 1,
+                    'message' => '^^[Permission denied]^^'
+                ];
+            }
+        }
+
+        $data = $this->model->column($row)->update($id);
 
         if (! $data) {
             $data = [
@@ -114,6 +131,17 @@ class Services
      */
     public function delete($id)
     {
+        if ($this->user_id) {
+            $data = $this->model->getById($id);
+
+            if ($this->user_id != $data['user_id']) {
+                return [
+                    'error' => 1,
+                    'message' => '^^[Permission denied]^^'
+                ];
+            }
+        }
+
         $data = $this->model->delete($id);
 
         if (! $data) {

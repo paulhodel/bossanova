@@ -91,11 +91,19 @@ class Module
      */
     public function processRestRequest(Services $service, $id = null)
     {
+        // Post variables
+        $post = $this->getPost();
+
+        // Process POST variables
+        if (is_callable(array($service, 'processPost'))) {
+            $post = $service->processPost($this->getPost());
+        }
+
         if ($this->getRequestMethod() == "POST" || $this->getRequestMethod() == "PUT") {
             if (! $id) {
-                $data = $service->insert($this->getPost());
+                $data = $service->insert($post);
             } else {
-                $data = $service->update($id, $this->getPost());
+                $data = $service->update($id, $post);
             }
         } else if ($this->getRequestMethod() == "DELETE") {
             $data = $service->delete($id);

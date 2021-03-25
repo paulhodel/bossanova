@@ -95,7 +95,7 @@ class Module
         $post = $this->getPost();
 
         // Process POST variables
-        if (is_callable(array($service, 'processPost'))) {
+        if (count($post) && is_callable(array($service, 'processPost'))) {
             $post = $service->processPost($this->getPost());
         }
 

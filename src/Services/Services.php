@@ -77,6 +77,7 @@ class Services
         } else {
             $data = [
                 'id' => $id,
+                'success' => 1,
                 'message' => '^^[Successfully saved]^^',
             ];
         }
@@ -115,6 +116,7 @@ class Services
             ];
         } else {
             $data = [
+                'success' => 1,
                 'message' => '^^[Successfully saved]^^',
             ];
         }
@@ -152,6 +154,7 @@ class Services
             ];
         } else {
             $data = [
+                'success' => 1,
                 'message' => '^^[Successfully saved]^^',
             ];
         }

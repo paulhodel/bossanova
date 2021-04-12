@@ -91,15 +91,15 @@ class Module
      */
     public function processRestRequest(Services $service, $id = null)
     {
-        // Post variables
-        $post = $this->getPost();
-
-        // Process POST variables
-        if (count($post) && is_callable(array($service, 'processPost'))) {
-            $post = $service->processPost($this->getPost());
-        }
-
         if ($this->getRequestMethod() == "POST" || $this->getRequestMethod() == "PUT") {
+            // Post variables
+            $post = $this->getPost();
+
+            // Process POST variables
+            if (count($post) && is_callable(array($service, 'processPost'))) {
+                $post = $service->processPost($this->getPost());
+            }
+
             if (! $id) {
                 $data = $service->insert($post);
             } else {
@@ -110,6 +110,10 @@ class Module
         } else {
             if ($id) {
                 $data = $service->select($id);
+                // Process data
+                if (is_callable(array($service, 'processData'))) {
+                    $data = $service->processData($data);
+                }
             } else {
                 $data = null;
             }

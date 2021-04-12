@@ -33,6 +33,13 @@ class Services
     }
 
     /**
+     * Permission to be implemented
+     */
+    public function isAllowed($id) {
+        return true;
+    }
+
+    /**
      * Basic select operation
      *
      * @param integer $id : record to be loaded
@@ -40,18 +47,20 @@ class Services
      */
     public function select($id)
     {
-        $data = $this->model->getById($id);
-
-        if (! $data) {
-            $data = [
-                'error' => 1,
-                'message' => '^^[Record not found]^^'
-            ];
-        } else if ($this->user_id && $this->user_id != $data['user_id']) {
+        if (! $this->isAllowed($id)) {
             $data = [
                 'error' => 1,
                 'message' => '^^[Permission denied]^^'
             ];
+        } else {
+            $data = $this->model->getById($id);
+
+            if (! $data) {
+                $data = [
+                    'error' => 1,
+                    'message' => '^^[Record not found]^^'
+                ];
+            }
         }
 
         return $data;
@@ -95,30 +104,26 @@ class Services
      */
     public function update($id, $row)
     {
-        if ($this->user_id) {
-            $data = $this->model->getById($id);
-
-            if ($this->user_id != $data['user_id']) {
-                return [
-                    'error' => 1,
-                    'message' => '^^[Permission denied]^^'
-                ];
-            }
-        }
-
-        $data = $this->model->column($row)->update($id);
-
-        if (! $data) {
-            $data = [
+        if (! $this->isAllowed($id)) {
+            return [
                 'error' => 1,
-                'message' => '^^[It was not possible to save your record]^^: '
-                    . $this->model->getError()
+                'message' => '^^[Permission denied]^^'
             ];
         } else {
-            $data = [
-                'success' => 1,
-                'message' => '^^[Successfully saved]^^',
-            ];
+            $data = $this->model->column($row)->update($id);
+
+            if (! $data) {
+                $data = [
+                    'error' => 1,
+                    'message' => '^^[It was not possible to save your record]^^: '
+                        . $this->model->getError()
+                ];
+            } else {
+                $data = [
+                    'success' => 1,
+                    'message' => '^^[Successfully saved]^^',
+                ];
+            }
         }
 
         return $data;
@@ -133,30 +138,26 @@ class Services
      */
     public function delete($id)
     {
-        if ($this->user_id) {
-            $data = $this->model->getById($id);
-
-            if ($this->user_id != $data['user_id']) {
-                return [
-                    'error' => 1,
-                    'message' => '^^[Permission denied]^^'
-                ];
-            }
-        }
-
-        $data = $this->model->delete($id);
-
-        if (! $data) {
+        if (! $this->isAllowed($id)) {
             $data = [
                 'error' => 1,
-                'message' => '^^[It was not possible to delete your record]^^: '
-                    . $this->model->getError()
+                'message' => '^^[Permission denied]^^'
             ];
         } else {
-            $data = [
-                'success' => 1,
-                'message' => '^^[Successfully saved]^^',
-            ];
+            $data = $this->model->delete($id);
+
+            if (! $data) {
+                $data = [
+                    'error' => 1,
+                    'message' => '^^[It was not possible to delete your record]^^: '
+                        . $this->model->getError()
+                ];
+            } else {
+                $data = [
+                    'success' => 1,
+                    'message' => '^^[Successfully saved]^^',
+                ];
+            }
         }
 
         return $data;

@@ -41,6 +41,10 @@ class View
 
     public function render($viewPath = null)
     {
+        if (! $viewPath && isset($this->module) && isset($this->viewFile)) {
+            $viewPath = 'modules/' . ucfirst(strtolower($this->module)) . '/views/' . strtolower($this->viewFile) . '.html';
+        }
+
         if (file_exists($viewPath)) {
             ob_start();
             include_once $viewPath;

@@ -276,11 +276,12 @@ class Auth
         // Signature
         $signature = hash('sha512', uniqid(mt_rand(), true));
 
-        // Payload
-        $token = $jwt->set([
+        // Cookie data
+        $data = [
             'domain' => Render::getDomain(),
             'user_id' => $row['user_id'],
             'user_login' => $row['user_login'],
+            'user_name' => $row['user_name'],
             'parent_id' => $row['parent_id'],
             'permission_id' => $row['permission_id'],
             'locale' => $row['user_locale'],
@@ -288,7 +289,15 @@ class Auth
             'permissions' => $permissions->getPermissionsById($row['permission_id']),
             'country_id' => isset($row['country_id']) && $row['country_id'] ? $row['country_id'] : 0,
             'hash' => $jwt->sign($signature)
-        ])->save();
+        ];
+
+        // User image
+        if (isset($row['user_image']) && $row['user_image']) {
+            $data['user_image'] = $row['user_image'];
+        }
+
+        // Payload
+        $token = $jwt->set($data)->save();
 
         // Access log
         if (defined('BOSSANOVA_LOG_USER_ACCESS')) {

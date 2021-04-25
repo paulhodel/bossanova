@@ -35,7 +35,7 @@ class Services
     /**
      * Permission to be implemented
      */
-    public function isAllowed($id) {
+    public function isAllowed($id, $data = null) {
         return true;
     }
 
@@ -47,18 +47,18 @@ class Services
      */
     public function select($id)
     {
-        if (! $this->isAllowed($id)) {
+        $data = $this->model->getById($id);
+
+        if (! $data) {
             $data = [
                 'error' => 1,
-                'message' => '^^[Permission denied]^^'
+                'message' => '^^[Record not found]^^'
             ];
         } else {
-            $data = $this->model->getById($id);
-
-            if (! $data) {
+            if (! $this->isAllowed($id, $data)) {
                 $data = [
                     'error' => 1,
-                    'message' => '^^[Record not found]^^'
+                    'message' => '^^[Permission denied]^^'
                 ];
             }
         }
@@ -104,7 +104,7 @@ class Services
      */
     public function update($id, $row)
     {
-        if (! $this->isAllowed($id)) {
+        if (! $this->isAllowed($id, $row)) {
             return [
                 'error' => 1,
                 'message' => '^^[Permission denied]^^'
@@ -155,7 +155,7 @@ class Services
             } else {
                 $data = [
                     'success' => 1,
-                    'message' => '^^[Successfully saved]^^',
+                    'message' => '^^[Successfully deleted]^^',
                 ];
             }
         }

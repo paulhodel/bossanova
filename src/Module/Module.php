@@ -97,7 +97,7 @@ class Module
 
             // Process POST variables
             if (count($post) && is_callable(array($service, 'processPost'))) {
-                $post = $service->processPost($this->getPost());
+                $post = $service->processPost($this->getPost(), $id);
             }
 
             if (! $id) {

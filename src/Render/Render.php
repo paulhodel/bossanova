@@ -635,12 +635,18 @@ class Render
      *
      * @return bool
      */
-    public static function isAjax()
+    public static function isAjax($jsonOnly = false)
     {
         $ajax = (isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
             strpos(strtolower($_SERVER['HTTP_X_REQUESTED_WITH']), 'http') !== false) ||
             (isset($_SERVER['HTTP_ACCEPT']) && strpos(strtolower($_SERVER['HTTP_ACCEPT']), 'json') !== false) ||
             (isset($_SERVER['CONTENT_TYPE']) && strpos(strtolower($_SERVER['CONTENT_TYPE']), 'json') !== false);
+
+        if ($jsonOnly) {
+            if (isset($_SERVER['CONTENT_TYPE']) && strpos(strtolower($_SERVER['CONTENT_TYPE']), 'json') === false) {
+                return false;
+            }
+        }
 
         return $ajax;
     }

@@ -309,8 +309,8 @@ class Module
         return (isset($_SERVER['REQUEST_METHOD'])) ? $_SERVER['REQUEST_METHOD'] : 'GET';
     }
 
-    public function isAjax()
+    public function isAjax($jsonOnly = false)
     {
-        return Render::isAjax();
+        return Render::isAjax($jsonOnly);
     }
 }

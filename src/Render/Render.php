@@ -643,7 +643,7 @@ class Render
             (isset($_SERVER['CONTENT_TYPE']) && strpos(strtolower($_SERVER['CONTENT_TYPE']), 'json') !== false);
 
         if ($jsonOnly) {
-            if (isset($_SERVER['CONTENT_TYPE']) && strpos(strtolower($_SERVER['CONTENT_TYPE']), 'json') === false) {
+            if (isset($_SERVER['CONTENT_TYPE']) && strpos(strtolower($_SERVER['CONTENT_TYPE']), 'json') !== false) {
                 return false;
             }
         }

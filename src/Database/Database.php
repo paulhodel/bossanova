@@ -484,6 +484,7 @@ class Database
      */
     public function setQuery($query)
     {
+        $this->query = [];
         $this->query['query'] = $query;
 
         return $this;

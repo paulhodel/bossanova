@@ -115,7 +115,7 @@ class Module
                     $data = $service->processData($data);
                 }
             } else if (is_callable(array($service, 'search')) && isset($service->user_id) && $service->user_id) {
-                $data = $service->search($service->user_id);
+                $data = $service->search();
             } else {
                 $data = null;
             }

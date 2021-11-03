@@ -69,43 +69,46 @@ class Translate
         // Processing buffer
         $result = '';
         $index  = '';
-        $key    = '';
 
-        $index_finded = 0;
+        $index_found = 0;
 
         for ($i = 0; $i < strlen($buffer); $i++) {
+            $char0 = mb_substr($buffer, $i, 1);
+            $char1 = mb_substr($buffer, $i+1, 1);
+            $char2 = mb_substr($buffer, $i+2, 1);
+
             if (strlen($buffer) > $i+2) {
                 // Find one possible end word mark
-                if ($buffer{$i} == ']') {
+                if ($char0 == ']') {
                     // Check if this is a start macro, end macro (real macro to be translated)
-                    if ($buffer{$i+1} == '^') {
+                    if ($char1 == '^') {
                         // start to counting or keep saving characters till the end of this word
-                        if ($buffer{$i+2} == '^') {
-                            if ($index_finded) {
+                        if ($char2 == '^') {
+                            if ($index_found) {
                                 $i = $i + 3;
 
-                                $index_finded = 0;
+                                $index_found = 0;
                             }
                         }
                     }
                 }
 
                 // Find one possible word mark
-                if ($buffer{$i} == '^') {
+                if ($char0 == '^') {
                     // Check if this is a start macro, end macro (real macro to be translated)
-                    if ($buffer{$i+1} == '^') {
+                    if ($char1 == '^') {
                         // start to counting or keep saving characters till the end of this word
-                        if ($buffer{$i+2} == '[') {
+                        if ($char2 == '[') {
                             $i = $i + 3;
 
-                            $index_finded = 1;
+                            $index_found = 1;
                         }
                     }
                 }
             }
 
             // Check the
-            if ($index_finded == 0) {
+            if ($index_found == 0) {
                 // Check if there any word to be processed
                 if ($index) {
                     // Find the hash based on index
@@ -123,12 +126,12 @@ class Translate
 
                 // Append to the final result
                 if (isset($buffer{$i})) {
-                    $result .= $buffer{$i};
+                    $result .= $char0;
                 }
             } else {
-                if (isset($buffer{$i})) {
+                if (isset($char0) && $char0 !== '') {
                     // Capturing a new word
-                    $index .= $buffer{$i};
+                    $index .= $char0;
                 }
             }
         }

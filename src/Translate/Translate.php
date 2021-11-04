@@ -30,7 +30,7 @@ class Translate
     public static function start($locale = null)
     {
         if (isset($locale) && $locale) {
-           self::$locale = $locale;
+            self::$locale = $locale;
         }
 
         // Callback for the translation
@@ -69,41 +69,22 @@ class Translate
         // Processing buffer
         $result = '';
         $index  = '';
+        $key    = '';
 
         $index_found = 0;
 
         for ($i = 0; $i < strlen($buffer); $i++) {
-            $char0 = mb_substr($buffer, $i, 1);
-            $char1 = mb_substr($buffer, $i+1, 1);
-            $char2 = mb_substr($buffer, $i+2, 1);
-
             if (strlen($buffer) > $i+2) {
                 // Find one possible end word mark
-                if ($char0 == ']') {
-                    // Check if this is a start macro, end macro (real macro to be translated)
-                    if ($char1 == '^') {
-                        // start to counting or keep saving characters till the end of this word
-                        if ($char2 == '^') {
-                            if ($index_found) {
-                                $i = $i + 3;
-
-                                $index_found = 0;
-                            }
-                        }
-                    }
+                if ($index_found && substr($buffer, $i, 3) == ']^^') {
+                    $i = $i + 3;
+                    $index_found = 0;
                 }
 
                 // Find one possible word mark
-                if ($char0 == '^') {
-                    // Check if this is a start macro, end macro (real macro to be translated)
-                    if ($char1 == '^') {
-                        // start to counting or keep saving characters till the end of this word
-                        if ($char2 == '[') {
-                            $i = $i + 3;
-
-                            $index_found = 1;
-                        }
-                    }
+                if (substr($buffer, $i, 3) == '^^[') {
+                    $i = $i + 3;
+                    $index_found = 1;
                 }
             }
 
@@ -125,13 +106,12 @@ class Translate
                 }
 
                 // Append to the final result
-                if (isset($buffer{$i})) {
-                    $result .= $char0;
+                if (substr($buffer, $i, 1) !== '') {
+                    $result .= substr($buffer, $i, 1);
                 }
             } else {
-                if (isset($char0) && $char0 !== '') {
-                    // Capturing a new word
-                    $index .= $char0;
+                if (substr($buffer, $i, 1) !== '') {
+                    $index .= substr($buffer, $i, 1);
                 }
             }
         }
@@ -163,6 +143,7 @@ class Translate
                 }
             }
         }
+        $dictionary = [];
 
         // Open the file and load all words in memory
         if ((! isset($dictionary) || ! $dictionary) || ($locale != $currentLocale)) {

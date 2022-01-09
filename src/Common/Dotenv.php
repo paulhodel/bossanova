@@ -46,6 +46,8 @@ class Dotenv
                 }
                 $_ENV[$name] = $value;
                 $_SERVER[$name] = $value;
+                
+                define($name, $value);
             }
         }
     }

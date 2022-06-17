@@ -86,7 +86,7 @@ class Jwt extends \stdClass
         return $this->base64_encode(hash_hmac('sha512', $str, BOSSANOVA_JWT_SECRET, true));
     }
 
-    private function setToken($data)
+    public function setToken($data)
     {
         // Header
         $header = [
@@ -105,7 +105,7 @@ class Jwt extends \stdClass
         return ($header . '.' . $data . '.' .  $signature);
     }
 
-    private function getToken()
+    public function getToken()
     {
         // Verify
         if ($this->isValid()) {

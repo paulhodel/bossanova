@@ -48,7 +48,7 @@ class Auth
 
             // Too many tries in a short period
             if ($validation[0] > 3 && (microtime(true) - $validation[1]) < 2) {
-                // Erro 404
+                // Error 404
                 header("HTTP/1.0 404 Not Found");
 
                 $data = [
@@ -282,6 +282,7 @@ class Auth
             'user_id' => $row['user_id'],
             'user_login' => $row['user_login'],
             'user_name' => $row['user_name'],
+            'user_signature' => isset($row['user_signature']) && $row['user_signature'] ? $row['user_signature'] : '',
             'parent_id' => $row['parent_id'],
             'permission_id' => $row['permission_id'],
             'locale' => $row['user_locale'],

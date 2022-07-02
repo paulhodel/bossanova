@@ -1,36 +1,37 @@
 <?php
-/**
- * (c) 2013 Bossanova PHP Framework 5
- * https://bossanova.uk/php-framework
- *
- * @category PHP
- * @package  Bossanova
- * @author   Paul Hodel <paul.hodel@gmail.com>
- * @license  The MIT License (MIT)
- * @link     https://bossanova.uk/php-framework
- *
- * Jwt
- */
+
 namespace bossanova\Jwt;
 
 use bossanova\Render\Render;
 
 class Jwt extends \stdClass
 {
-    public $key = 'bossanova';
+    /**
+     * @var string $key - This defines the key of the cookie with the JWT if is used.
+     */
+    private $key = 'bossanova';
+
+    /**
+     * @var string $signature - This is the signature string for your JWT's
+     */
+    private $signature = BOSSANOVA_JWT_SECRET;
 
     /**
      * Authentication controls
      */
-    final public function __construct($jwtKey = null)
+    final public function __construct($jwtKey = null, $signature = null)
     {
         // Set custom key
         if (isset($jwtKey) && $jwtKey) {
             $this->key = $jwtKey;
         }
+        // Signature
+        if (isset($signature) && $signature) {
+            $this->signature = $signature;
+        }
 
         // Must be defined in your config.php
-        if (defined('BOSSANOVA_JWT_SECRET') && BOSSANOVA_JWT_SECRET) {
+        if ($this->signature) {
             if ($data = $this->getToken()) {
                 // Set token as object properties
                 foreach ($data as $k => $v) {
@@ -58,32 +59,9 @@ class Jwt extends \stdClass
         return $this;
     }
 
-    final public function set($data)
+    public function setSignature($signature)
     {
-        foreach ($data as $k => $v) {
-            $this->{$k} = $v;
-        }
-
-        return $this;
-    }
-
-    final public function save()
-    {
-        // Expires
-        $expires = time() + 86400 * 3;
-
-        // Create token
-        $token = $this->setToken($this);
-
-        // Default for 3 days
-        header("Set-Cookie: {$this->key}={$token}; path=/; SameSite=Lax; expires={$expires};");
-
-        return $token;
-    }
-
-    final public function sign($str)
-    {
-        return $this->base64_encode(hash_hmac('sha512', $str, BOSSANOVA_JWT_SECRET, true));
+        $this->signature = $signature;
     }
 
     public function setToken($data)
@@ -109,7 +87,7 @@ class Jwt extends \stdClass
     {
         // Verify
         if ($this->isValid()) {
-             // Token
+            // Token
             $webToken = $this->getPostedToken();
             $webToken = explode('.', $webToken);
 
@@ -119,9 +97,55 @@ class Jwt extends \stdClass
         return false;
     }
 
-    private function isValid()
+    public function extractToken($webToken)
     {
-        $webToken = $this->getPostedToken();
+        // Verify
+        if ($this->isValid($webToken)) {
+            // Token
+            $webToken = explode('.', $webToken);
+
+            return json_decode($this->base64_decode($webToken[1]));
+        }
+
+        return false;
+    }
+
+
+    final public function set($data)
+    {
+        foreach ($data as $k => $v) {
+            $this->{$k} = $v;
+        }
+
+        return $this;
+    }
+
+    final public function save()
+    {
+        // Expires
+        $expires = time() + 86400 * 3;
+
+        // Create token
+        $token = $this->setToken($this);
+
+        // Default for 3 days
+        header("Set-Cookie: {$this->key}={$token}; path=/; SameSite=Lax; expires={$expires};");
+
+        return $token;
+    }
+
+    final public function sign($str)
+    {
+        return $this->base64_encode(hash_hmac('sha512', $str, $this->signature, true));
+    }
+
+    private function isValid($str = null)
+    {
+        if ($str) {
+            $webToken = $str;
+        } else {
+            $webToken = $this->getPostedToken();
+        }
 
         if ($webToken) {
             // Token
@@ -154,12 +178,13 @@ class Jwt extends \stdClass
             strlen($data) % 4, '=', STR_PAD_RIGHT));
     }
 
-    private function getPostedToken() {
-        if (isset($_COOKIE[$this->key]) && strlen($_COOKIE[$this->key]) > 64) {
-            $webToken = $_COOKIE[$this->key];
-        } else if (isset($_SERVER['HTTP_AUTHORIZATION']) && $_SERVER['HTTP_AUTHORIZATION']) {
+    private function getPostedToken()
+    {
+        if (isset($_SERVER['HTTP_AUTHORIZATION']) && $_SERVER['HTTP_AUTHORIZATION']) {
             $bearer = explode(' ', $_SERVER['HTTP_AUTHORIZATION']);
             $webToken = $bearer[1];
+        } else if (isset($_COOKIE[$this->key]) && strlen($_COOKIE[$this->key]) > 64) {
+            $webToken = $_COOKIE[$this->key];
         } else {
             $webToken = false;
         }

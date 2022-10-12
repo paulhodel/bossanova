@@ -84,9 +84,14 @@ class Auth
                             // Change password step
                             $data = $this->updatePassword($this->getPost('h'));
                         }
-                    } else if ($this->getRequest('f')) {
-                        // Facebook token to be analised
-                        $data = $this->facebookTokenLogin();
+                    } else if ($social = $this->getPost('social')) {
+                        if ($social == 'google') {
+                            // Facebook token to be analised
+                            $data = $this->googleTokenLogin($this->getPost('token'));
+                        } else {
+                            // Facebook token to be analised
+                            $data = $this->facebookTokenLogin($this->getPost('token'));
+                        }
                     } else {
                         if (Render::isAjax()) {
                             // Login forbiden
@@ -789,6 +794,123 @@ class Auth
      * @param string $token
      * @return string $json
      */
+    private function googleTokenLogin($token)
+    {
+        $data = [];
+
+        if (defined('BOSSANOVA_LOGIN_VIA_GOOGLE') && BOSSANOVA_LOGIN_VIA_GOOGLE == true) {
+
+            // Token URL verification
+            $url = "https://oauth2.googleapis.com/tokeninfo?id_token=$token";
+            // Validate token
+            $result = $this->wget($url);
+
+            // Valid token
+            if (isset($result['aud']) && $result['aud'] && $result['aud'] === GOOGLE_API_CLIENT_ID) {
+                // User id found
+                if (isset($result['sub']) && $result['sub']) {
+                    // Locate user
+                    $user = new \models\Users();
+                    $row = $user->getUserByGoogleId($result['sub']);
+
+                    // User not found by google id
+                    if (! isset($row['user_id'])) {
+                        // Check if this user exists in the database by email
+                        if (isset($result['email']) && $result['email']) {
+                            // Try to find the user by email
+                            $row = $user->getUserByEmail($result['email']);
+
+                            if (isset($row['user_id'])) {
+                                // The account is linked now
+                                $user->google_id = $result['sub'];
+                            }
+                        }
+                    }
+
+                    // Create a new user
+                    if (defined('BOSSANOVA_NEWUSER_VIA_GOOGLE') && BOSSANOVA_NEWUSER_VIA_GOOGLE == true) {
+                        if (! isset($row['user_id'])) {
+                            $salt = hash('sha512', uniqid(mt_rand(1, mt_getrandmax()), true));
+                            $pass = substr(str_shuffle(str_repeat("0123456789abcdefghijklmnopqrstuvwxyz", 6)), 0, 6);
+                            $pass = hash('sha512', hash('sha512', $pass) . $salt);
+
+                            $row = [
+                                'permission_id' => 0,
+                                'parent_id' => 0,
+                                'google_id' => $result['sub'],
+                                'user_name' => $result['given_name'],
+                                'user_login' => isset($result['email']) ? $result['email'] : '',
+                                'user_email' => isset($result['email']) ? $result['email'] : '',
+                                'user_salt' => $salt,
+                                'user_password' => $pass,
+                                'user_locale' => DEFAULT_LOCALE,
+                                'user_status' => 1,
+                            ];
+
+                            if ($row['user_id'] = $user->column($row)->insert()) {
+                                // Load user data as object
+                                $user->get($row['user_id']);
+                            }
+                        }
+                    }
+
+                    if (isset($row['user_id']) && $row['user_id']) {
+                        // Message
+                        $this->message = '^^[User authenticated from google token]^^';
+
+                        // Authenticated
+                        $this->authenticate($row);
+
+                        // Force login by hash for specific use
+                        $user->user_hash = '';
+                        $user->user_recovery = '';
+                        $user->user_recovery_date = '';
+                        $user->user_hash = '';
+
+                        // Mobile device token
+                        if ($this->getRequest('token')) {
+                            $user->user_token = $this->getRequest('token');
+                        }
+
+                        // Update user information
+                        $user->save();
+
+                        $data = [
+                            'success' => 1,
+                            'message' => $this->message,
+                            'url' => Render::getLink(Render::$urlParam[0]),
+                        ];
+                    } else {
+                        $data = [
+                            'error' => 1,
+                            'message' => "^^[User not authenticated]^^",
+                            'url' => Render::getLink(Render::$urlParam[0] . '/login'),
+                        ];
+                    }
+                }
+            } else {
+                $data = [
+                    'error' => 1,
+                    'message' => "^^[Invalid google token]^^",
+                    'url' => Render::getLink(Render::$urlParam[0] . '/login'),
+                ];
+            }
+        } else {
+            $data = [
+                'error' => 1,
+                'message' => "^^[Action not allowed]^^",
+                'url' => Render::getLink(Render::$urlParam[0] . '/login'),
+            ];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Facebook integration
+     * @param string $token
+     * @return string $json
+     */
     private function facebookTokenLogin($token)
     {
         $data = [];
@@ -853,7 +975,7 @@ class Auth
                         }
                     }
 
-                    if (isset($row['user_id'])) {
+                    if (isset($row['user_id']) && $row['user_id']) {
                         // Message
                         $this->message = '^^[User authenticated from facebook token]^^';
 
@@ -864,7 +986,7 @@ class Auth
                         $user->user_hash = '';
                         $user->user_recovery = '';
                         $user->user_recovery_date = '';
-                        $user->user_hash = $this->access_token;
+                        $user->user_hash = '';
 
                         // Mobile device token
                         if ($this->getRequest('token')) {

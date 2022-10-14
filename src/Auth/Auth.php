@@ -37,7 +37,7 @@ class Auth
 
             // Too many tries in a short period
             if ($validation[0] > 3 && (microtime(true) - $validation[1]) < 2) {
-                // Error 404
+                // Erro 404
                 header("HTTP/1.0 404 Not Found");
 
                 $data = [
@@ -54,37 +54,43 @@ class Auth
                         'message' => "^^[Invalid captcha, please try again]^^",
                     ];
                 } else {
-                    if ($this->getPost('username')) {
-                        // Recovery flag posted
-                        if ($this->getPost('recovery')) {
-                            $data = $this->loginRecovery();
-                        } else {
-                            // Perform normal login
-                            $data = $this->loginRegister();
-                        }
-                    } else if ($this->getRequest('h')) {
-                        // Recovery process
+                    // GET actions
+                    if ($this->getRequest('h')) {
+                        // First access or recovery link
                         $data = $this->loginHash($this->getRequest('h'));
-                    } else if ($this->getPost('h')) {
-                        if (! $this->getPost('password')) {
-                            // Hash validation
-                            $data = $this->loginHash($this->getPost('h'));
-                        } else {
-                            // Change password step
-                            $data = $this->updatePassword($this->getPost('h'));
-                        }
-                    } else if ($social = $this->getPost('social')) {
-                        if ($social == 'google') {
-                            // Facebook token to be analised
-                            $data = $this->googleTokenLogin($this->getPost('token'));
-                        } else {
-                            // Facebook token to be analised
-                            $data = $this->facebookTokenLogin($this->getPost('token'));
-                        }
                     } else {
-                        if (Render::isAjax()) {
-                            // Login forbiden
-                            $data = $this->loginForbidden();
+                        // POST actions
+                        if ($this->getPost('username')) {
+                            // Actions with the login involved
+                            if ($this->getPost('recovery')) {
+                                // The user requested a new password
+                                $data = $this->loginRecovery();
+                            } else {
+                                // Perform normal login
+                                $data = $this->loginRegister();
+                            }
+                        } else if ($this->getPost('h')) {
+                            // Actions with the hash involved
+                            if (! $this->getPost('password')) {
+                                // A recovery code has been sent without the password
+                                $data = $this->loginHash($this->getPost('h'));
+                            } else {
+                                // Change password step
+                                $data = $this->updatePassword($this->getPost('h'));
+                            }
+                        } else if ($social = $this->getPost('social')) {
+                            if ($social == 'google') {
+                                // Facebook token to be analysed
+                                $data = $this->googleTokenLogin($this->getPost('token'));
+                            } else {
+                                // Facebook token to be analised
+                                $data = $this->facebookTokenLogin($this->getPost('token'));
+                            }
+                        } else {
+                            if (Render::isAjax()) {
+                                // Login forbidden
+                                $data = $this->loginForbidden();
+                            }
                         }
                     }
                 }
@@ -608,6 +614,7 @@ class Auth
             } else {
                 $data = [
                     'error' => 1,
+                    'message' => '^^[This code is not valid or has been expired]^^',
                     'url' => Render::getLink($module . '/login'),
                 ];
             }
@@ -809,9 +816,36 @@ class Auth
                             // Try to find the user by email
                             $row = $user->getUserByEmail($result['email']);
 
-                            if (isset($row['user_id'])) {
-                                // The account is linked now
-                                $user->google_id = $result['sub'];
+                            if (isset($row['user_id']) && $row['user_id']) {
+                                if (isset($row['google_id']) && $row['google_id']) {
+                                    // An user with
+                                    return [
+                                        'error' => 1,
+                                        'message' => '^^[This account already exists bound to another account.]^^',
+                                    ];
+                                } else {
+                                    if ($password = $this->getPost('password')) {
+                                        // Posted password
+                                        $password = hash('sha512', $password . $row['user_salt']);
+                                        // Check to see if password matches
+                                        if ($password == $row['user_password'] && strtolower($row['user_email']) == strtolower($result['email']) && $row['user_status'] == 1) {
+                                            $user->google_id = $result['sub'];
+                                        } else {
+                                            // There are one account with this email. Ask the user what he wants to do.
+                                            return [
+                                                'error' => 1,
+                                                'message' => '^^[Invalid password]^^',
+                                            ];
+                                        }
+                                    } else {
+                                        // There are one account with this email. Ask the user what he wants to do.
+                                        return [
+                                            'error' => 1,
+                                            'message' => '^^[There are an account with your email. Would you like to bound both accounts? Please enter your account password.]^^',
+                                            'action' => 'bindSocialAccount',
+                                        ];
+                                    }
+                                }
                             }
                         }
                     }
@@ -923,16 +957,44 @@ class Auth
                     $user = new \models\Users();
                     $row = $user->getUserByFacebookId($result['id']);
 
-                    // User not found by facebook id
+
+                    // User not found by google id
                     if (! isset($row['user_id'])) {
                         // Check if this user exists in the database by email
                         if (isset($result['email']) && $result['email']) {
                             // Try to find the user by email
                             $row = $user->getUserByEmail($result['email']);
 
-                            if (isset($row['user_id'])) {
-                                // The account is linked now
-                                $user->facebook_id = $result['id'];
+                            if (isset($row['user_id']) && $row['user_id']) {
+                                if (isset($row['facebook_id']) && $row['facebook_id']) {
+                                    // An user with
+                                    return [
+                                        'error' => 1,
+                                        'message' => '^^[This account already exists bound to another account.]^^',
+                                    ];
+                                } else {
+                                    if ($password = $this->getPost('password')) {
+                                        // Posted password
+                                        $password = hash('sha512', $password . $row['user_salt']);
+                                        // Check to see if password matches
+                                        if ($password == $row['user_password'] && strtolower($row['user_email']) == strtolower($result['email']) && $row['user_status'] == 1) {
+                                            $user->facebook_id = $result['id'];
+                                        } else {
+                                            // There are one account with this email. Ask the user what he wants to do.
+                                            return [
+                                                'error' => 1,
+                                                'message' => '^^[Invalid password]^^',
+                                            ];
+                                        }
+                                    } else {
+                                        // There are one account with this email. Ask the user what he wants to do.
+                                        return [
+                                            'error' => 1,
+                                            'message' => '^^[There are an account with your email. Would you like to bound both accounts? Please enter your account password.]^^',
+                                            'action' => 'bindSocialAccount',
+                                        ];
+                                    }
+                                }
                             }
                         }
                     }

@@ -108,20 +108,20 @@ class Auth
                         }
                     }
                 }
-
-                // Reset counter in any success response
-                if (isset($data['success']) && $data['success']) {
-                    // Reset count
-                    $this->setValidation([ 0, null, null ]);
-                }
             }
 
-            // Record of the activity
-            $validation[0]++;
-            $validation[1] = microtime(true);
+            // Reset counter in any success response
+            if (isset($data['success']) && $data['success']) {
+                // Reset count
+                $this->setValidation([ 0, null, null ]);
+            } else {
+                // Record of the activity
+                $validation[0]++;
+                $validation[1] = microtime(true);
 
-            // Persist validations
-            $this->setValidation($validation);
+                // Persist validations
+                $this->setValidation($validation);
+            }
         }
 
         return isset($data) ? $data : null;
@@ -381,7 +381,7 @@ class Auth
                         'url' => $url,
                     ];
 
-                // This is the first access, or your password has expired
+                    // This is the first access, or your password has expired
                 } else if ($row['user_status'] == 2 || $row['user_status'] == 3) {
                     // Update hash
                     $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
@@ -452,8 +452,8 @@ class Auth
 
                 // Send email with instructions
                 $filename = defined('EMAIL_RECOVERY_FILE')
-                    && file_exists(EMAIL_RECOVERY_FILE) ?
-                        EMAIL_RECOVERY_FILE : 'resources/texts/recover.txt';
+                && file_exists(EMAIL_RECOVERY_FILE) ?
+                    EMAIL_RECOVERY_FILE : 'resources/texts/recover.txt';
 
                 // Send instructions email to the user
                 try {

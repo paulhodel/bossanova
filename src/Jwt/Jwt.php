@@ -87,7 +87,7 @@ class Jwt extends \stdClass
     {
         // Verify
         if ($this->isValid()) {
-            // Token
+             // Token
             $webToken = $this->getPostedToken();
             $webToken = explode('.', $webToken);
 

@@ -96,7 +96,7 @@ class Auth
                 }
 
                 // Replace the message
-                if (defined('BOSSANOVA_LOGIN_CAPTCHA') && BOSSANOVA_LOGIN_CAPTCHA == true) {
+                if (defined('BOSSANOVA_LOGIN_CAPTCHA') && BOSSANOVA_LOGIN_CAPTCHA) {
                     // Too many tries, request catcha
                     if (isset($data['error']) && $validation[0] > 5) {
                         // Captcha data

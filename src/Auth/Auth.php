@@ -48,7 +48,7 @@ class Auth
                 $captcha = $this->getPost('captcha');
 
                 // Receiving post, captcha is in memory for comparison, 5 erros in a row, compare catch with what was posted
-                if ($captcha && $validation[2] &&  $validation[0] > 5 && $validation[2] != $captcha) {
+                if (isset($_POST['captcha']) && $validation[2] &&  $validation[0] > 5 && $validation[2] != $captcha) {
                     $data = [
                         'error' => 1,
                         'message' => "^^[Invalid captcha, please try again]^^",

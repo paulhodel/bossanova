@@ -1,16 +1,5 @@
 <?php
-/**
- * (c) 2013 Bossanova PHP Framework 5
- * https://bossanova.uk/php-framework
- *
- * @category PHP
- * @package  Bossanova
- * @author   From the internet
- * @license  The MIT License (MIT)
- * @link     https://bossanova.uk/php-framework
- *
- * Configuration
- */
+
 namespace bossanova\Common;
 
 class Dotenv

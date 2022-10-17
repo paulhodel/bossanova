@@ -299,9 +299,9 @@ class Auth
 
         // Payload
         $token = $jwt->set($data)->save();
-
+        
         // Access log
-        if (defined('BOSSANOVA_LOG_USER_ACCESS')) {
+        if (defined('BOSSANOVA_LOG_USER_ACCESS') && BOSSANOVA_LOG_USER_ACCESS) {
             $this->accessLog($row);
         }
 
@@ -840,7 +840,7 @@ class Auth
                                     } else {
                                         // There are one account with this email. Ask the user what he wants to do.
                                         return [
-                                            'error' => 1,
+                                            'success' => 1,
                                             'message' => '^^[There are an account with your email. Would you like to bound both accounts? Please enter your account password.]^^',
                                             'action' => 'bindSocialAccount',
                                         ];
@@ -989,7 +989,7 @@ class Auth
                                     } else {
                                         // There are one account with this email. Ask the user what he wants to do.
                                         return [
-                                            'error' => 1,
+                                            'success' => 1,
                                             'message' => '^^[There are an account with your email. Would you like to bound both accounts? Please enter your account password.]^^',
                                             'action' => 'bindSocialAccount',
                                         ];

@@ -83,15 +83,19 @@ class Jwt extends \stdClass
         return ($header . '.' . $data . '.' .  $signature);
     }
 
-    public function getToken()
+    public function getToken($asString=null)
     {
-        // Verify
-        if ($this->isValid()) {
-             // Token
-            $webToken = $this->getPostedToken();
-            $webToken = explode('.', $webToken);
+        if ($asString) {
+            return $this->getPostedToken();
+        } else {
+            // Verify
+            if ($this->isValid()) {
+                // Token
+                $webToken = $this->getPostedToken();
+                $webToken = explode('.', $webToken);
 
-            return json_decode($this->base64_decode($webToken[1]));
+                return json_decode($this->base64_decode($webToken[1]));
+            }
         }
 
         return false;

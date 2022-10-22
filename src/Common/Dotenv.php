@@ -34,7 +34,6 @@ class Dotenv
                     $value = substr($value, 0,-1);
                 }
                 $_ENV[$name] = $value;
-                $_SERVER[$name] = $value;
 
                 define($name, $value);
             }

@@ -224,7 +224,7 @@ class Module
 
         // Deal with the authetantion service return
         if (Render::isAjax()) {
-            return $this->jsonEncode($data);
+            return $data;
         } else {
             if (isset($data['url'])) {
                 $this->redirect($data['url'], $data);

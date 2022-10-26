@@ -870,9 +870,11 @@ class Auth
                                 'user_status' => 1,
                             ];
 
-                            if ($row['user_id'] = $user->column($row)->insert()) {
+                            if ($id = $user->column($row)->insert()) {
                                 // Load user data as object
-                                $user->get($row['user_id']);
+                                $user->get($id);
+                                // User ID
+                                $row['user_id'] = (int)$id;
                             }
                         }
                     }
@@ -903,6 +905,10 @@ class Auth
                             'message' => $this->message,
                             'url' => Render::getLink(Render::$urlParam[0]),
                         ];
+
+                        if (isset($id) && $id) {
+                            $data['id'] = $id;
+                        }
                     } else {
                         $data = [
                             'error' => 1,
@@ -1019,9 +1025,11 @@ class Auth
                                 'user_status' => 1,
                             ];
 
-                            if ($row['user_id'] = $user->column($row)->insert()) {
+                            if ($id = $user->column($row)->insert()) {
                                 // Load user data as object
-                                $user->get($row['user_id']);
+                                $user->get($id);
+                                // User ID
+                                $row['user_id'] = (int)$id;
                             }
                         }
                     }
@@ -1052,6 +1060,10 @@ class Auth
                             'message' => $this->message,
                             'url' => Render::getLink(Render::$urlParam[0]),
                         ];
+
+                        if (isset($id) && $id) {
+                            $data['id'] = $id;
+                        }
                     } else {
                         $data = [
                             'error' => 1,

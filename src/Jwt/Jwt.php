@@ -142,6 +142,11 @@ class Jwt extends \stdClass
         return $token;
     }
 
+    final public function destroy()
+    {
+        header("Set-Cookie: {$this->key}=null; path=/; SameSite=Lax; expires=0;");
+    }
+
     final public function sign($str)
     {
         return $this->base64_encode(hash_hmac('sha512', $str, $this->signature, true));

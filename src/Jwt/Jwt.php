@@ -83,7 +83,8 @@ class Jwt extends \stdClass
         return ($header . '.' . $data . '.' .  $signature);
     }
     
-    public function createToken($data) {
+    public function createToken($data)
+    {
         return $this->setToken($data);
     }
 

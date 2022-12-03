@@ -84,15 +84,28 @@ class Module
             // Post variables
             $post = $this->getPost();
 
-            // Process POST variables
+            // Before Process POST
             if (count($post) && is_callable(array($service, 'processPost'))) {
-                $post = $service->processPost($this->getPost(), $id);
+                $post = $service->processPost($post, $id);
             }
 
             if (! $id) {
                 $data = $service->insert($post);
+
+                if (isset($data['id']) && $data['id']) {
+                    $id = $data['id'];
+                }
             } else {
                 $data = $service->update($id, $post);
+            }
+
+            // After Process POST
+            $post = $this->getPost();
+            if (count($post) && is_callable(array($service, 'processAfterPost'))) {
+                $ret = $service->processAfterPost($post, $id, $data);
+                if ($ret) {
+                    $data = $ret;
+                }
             }
         } else if ($this->getRequestMethod() == "DELETE") {
             $data = $service->delete($id);

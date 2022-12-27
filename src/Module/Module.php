@@ -86,7 +86,7 @@ class Module
 
             // Before Process POST
             if (count($post) && is_callable(array($service, 'processPost'))) {
-                $post = $service->processPost($post, $id);
+                $post = $service->processPost($this->getPost(), $id);
             }
 
             if (! $id) {
@@ -100,26 +100,24 @@ class Module
             }
 
             // After Process POST
-            $post = $this->getPost();
             if (count($post) && is_callable(array($service, 'processAfterPost'))) {
-                $ret = $service->processAfterPost($post, $id, $data);
-                if ($ret) {
-                    $data = $ret;
-                }
+                $post = $service->processAfterPost($this->getPost(), $id, $data);
             }
         } else if ($this->getRequestMethod() == "DELETE") {
             $data = $service->delete($id);
         } else {
-            if ($id) {
+            if (! $id || $id === 'search') {
+                if (is_callable(array($service, 'search'))) {
+                    $data = $service->search();
+                } else {
+                    $data = null;
+                }
+            } else {
                 $data = $service->select($id);
                 // Process data
                 if (is_callable(array($service, 'processData'))) {
                     $data = $service->processData($data);
                 }
-            } else if (is_callable(array($service, 'search'))) {
-                $data = $service->search();
-            } else {
-                $data = null;
             }
         }
 

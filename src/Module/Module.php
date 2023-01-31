@@ -1,16 +1,5 @@
 <?php
-/**
- * (c) 2013 Bossanova PHP Framework 5
- * https://bossanova.uk/php-framework
- *
- * @category PHP
- * @package  Bossanova
- * @author   Paul Hodel <paul.hodel@gmail.com>
- * @license  The MIT License (MIT)
- * @link     https://bossanova.uk/php-framework
- *
- * Module Library
- */
+
 namespace bossanova\Module;
 
 use bossanova\Auth\Auth;
@@ -95,29 +84,40 @@ class Module
             // Post variables
             $post = $this->getPost();
 
-            // Process POST variables
+            // Before Process POST
             if (count($post) && is_callable(array($service, 'processPost'))) {
                 $post = $service->processPost($this->getPost(), $id);
             }
 
             if (! $id) {
                 $data = $service->insert($post);
+
+                if (isset($data['id']) && $data['id']) {
+                    $id = $data['id'];
+                }
             } else {
                 $data = $service->update($id, $post);
+            }
+
+            // After Process POST
+            if (count($post) && is_callable(array($service, 'processAfterPost'))) {
+                $post = $service->processAfterPost($this->getPost(), $id, $data);
             }
         } else if ($this->getRequestMethod() == "DELETE") {
             $data = $service->delete($id);
         } else {
-            if ($id) {
+            if (! $id || $id === 'search') {
+                if (is_callable(array($service, 'search'))) {
+                    $data = $service->search();
+                } else {
+                    $data = null;
+                }
+            } else {
                 $data = $service->select($id);
                 // Process data
                 if (is_callable(array($service, 'processData'))) {
                     $data = $service->processData($data);
                 }
-            } else if (is_callable(array($service, 'search')) && isset($service->user_id) && $service->user_id) {
-                $data = $service->search();
-            } else {
-                $data = null;
             }
         }
 
@@ -235,7 +235,7 @@ class Module
 
         // Deal with the authetantion service return
         if (Render::isAjax()) {
-            return $this->jsonEncode($data);
+            return $data;
         } else {
             if (isset($data['url'])) {
                 $this->redirect($data['url'], $data);

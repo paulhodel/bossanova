@@ -1,16 +1,5 @@
 <?php
-/**
- * (c) 2013 Bossanova PHP Framework 5
- * https://bossanova.uk/php-framework
- *
- * @category PHP
- * @package  Bossanova
- * @author   Paul Hodel <paul.hodel@gmail.com>
- * @license  The MIT License (MIT)
- * @link     https://bossanova.uk/php-framework
- *
- * Authentication Class
- */
+
 namespace bossanova\Auth;
 
 use bossanova\Config\Config;
@@ -25,6 +14,15 @@ use bossanova\Jwt\Jwt;
 class Auth
 {
     use Wget, Post, Request;
+
+    public function __construct(Model $users = NULL)
+    {
+        if ($users) {
+            $this->user = $users;
+        } else {
+            $this->user = new \models\Users;
+        }
+    }
 
     /**
      * Login actions (login and password recovery)
@@ -48,7 +46,7 @@ class Auth
 
             // Too many tries in a short period
             if ($validation[0] > 3 && (microtime(true) - $validation[1]) < 2) {
-                // Error 404
+                // Erro 404
                 header("HTTP/1.0 404 Not Found");
 
                 $data = [
@@ -59,49 +57,55 @@ class Auth
                 $captcha = $this->getPost('captcha');
 
                 // Receiving post, captcha is in memory for comparison, 5 erros in a row, compare catch with what was posted
-                if ($captcha && $validation[2] &&  $validation[0] > 5 && $validation[2] != $captcha) {
+                if (isset($_POST['captcha']) && $validation[2] &&  $validation[0] > 5 && $validation[2] != $captcha) {
                     $data = [
                         'error' => 1,
                         'message' => "^^[Invalid captcha, please try again]^^",
                     ];
                 } else {
-                    if ($this->getPost('username')) {
-                        // Recovery flag posted
-                        if ($this->getPost('recovery')) {
-                            $data = $this->loginRecovery();
-                        } else {
-                            // Perform normal login
-                            $data = $this->loginRegister();
-                        }
-                    } else if ($this->getRequest('h')) {
-                        // Recovery process
+                    // GET actions
+                    if ($this->getRequest('h')) {
+                        // First access or recovery link
                         $data = $this->loginHash($this->getRequest('h'));
-                    } else if ($this->getPost('h')) {
-                        if (! $this->getPost('password')) {
-                            // Hash validation
-                            $data = $this->loginHash($this->getPost('h'));
-                        } else {
-                            // Change password step
-                            $data = $this->updatePassword($this->getPost('h'));
-                        }
-                    } else if ($social = $this->getPost('social')) {
-                        if ($social == 'google') {
-                            // Facebook token to be analised
-                            $data = $this->googleTokenLogin($this->getPost('token'));
-                        } else {
-                            // Facebook token to be analised
-                            $data = $this->facebookTokenLogin($this->getPost('token'));
-                        }
                     } else {
-                        if (Render::isAjax()) {
-                            // Login forbiden
-                            $data = $this->loginForbidden();
+                        // POST actions
+                        if ($this->getPost('username')) {
+                            // Actions with the login involved
+                            if ($this->getPost('recovery')) {
+                                // The user requested a new password
+                                $data = $this->loginRecovery();
+                            } else {
+                                // Perform normal login
+                                $data = $this->loginRegister();
+                            }
+                        } else if ($this->getPost('h')) {
+                            // Actions with the hash involved
+                            if (! $this->getPost('password')) {
+                                // A recovery code has been sent without the password
+                                $data = $this->loginHash($this->getPost('h'));
+                            } else {
+                                // Change password step
+                                $data = $this->updatePassword($this->getPost('h'));
+                            }
+                        } else if ($social = $this->getPost('social')) {
+                            if ($social == 'google') {
+                                // Facebook token to be analysed
+                                $data = $this->googleTokenLogin($this->getPost('token'));
+                            } else {
+                                // Facebook token to be analised
+                                $data = $this->facebookTokenLogin($this->getPost('token'));
+                            }
+                        } else {
+                            if (Render::isAjax()) {
+                                // Login forbidden
+                                $data = $this->loginForbidden();
+                            }
                         }
                     }
                 }
 
                 // Replace the message
-                if (defined('BOSSANOVA_LOGIN_CAPTCHA') && BOSSANOVA_LOGIN_CAPTCHA == true) {
+                if (defined('BOSSANOVA_LOGIN_CAPTCHA') && BOSSANOVA_LOGIN_CAPTCHA) {
                     // Too many tries, request catcha
                     if (isset($data['error']) && $validation[0] > 5) {
                         // Captcha data
@@ -113,106 +117,23 @@ class Auth
                         }
                     }
                 }
-
-                // Reset counter in any success response
-                if (isset($data['success']) && $data['success']) {
-                    // Reset count
-                    $this->setValidation([ 0, null, null ]);
-                }
             }
 
-            // Record of the activity
-            $validation[0]++;
-            $validation[1] = microtime(true);
+            // Reset counter in any success response
+            if (isset($data['success']) && $data['success']) {
+                // Reset count
+                $this->setValidation([ 0, null, null ]);
+            } else {
+                // Record of the activity
+                $validation[0]++;
+                $validation[1] = microtime(true);
 
-            // Persist validations
-            $this->setValidation($validation);
+                // Persist validations
+                $this->setValidation($validation);
+            }
         }
 
         return isset($data) ? $data : null;
-    }
-
-    /**
-     * Execute the logout actions
-     *
-     * @return void
-     */
-    public function logout()
-    {
-        // Reset cookie
-        header("Set-Cookie: bossanova=null; path=/; SameSite=Lax; expires=0;");
-
-        // Redirect to the main page
-        $url = Render::$urlParam[0];
-
-        if ($url != 'login') {
-            $url .= '/login';
-        }
-
-        // Return
-        if (Render::isAjax()) {
-            $data = [
-                'success' => 1,
-                'message' => "^^[The user is now log out]^^",
-                'url' => Render::getLink($url),
-            ];
-        } else {
-            header("Location:/$url\r\n");
-            exit;
-        }
-
-        // Force logout
-        if ($user_id = $this->getUser()) {
-            $user = new \models\Users;
-            $user->get($user_id);
-            $user->user_hash = '';
-            $user->save();
-        }
-
-        // Remove hash
-        if (class_exists('Redis')) {
-            if ($redis = Redis::getInstance()) {
-                // Save signature
-                $redis->set('hash' . $user_id, '');
-            }
-        }
-
-        return $data;
-    }
-
-    /**
-     * Helper to get the identification from the user, if is not identified redirec to the login page
-     *
-     * @return integer $user_id
-     */
-    final public function getIdent()
-    {
-        // After all process check if the user is logged
-        if (! $this->getUser()) {
-            $param = isset(Render::$urlParam[1]) ? Render::$urlParam[1] : '';
-
-            // Redirect the user to the login page
-            if ($param != 'login') {
-                // TODO: referer
-
-                // Redirect
-                $data = [
-                    'error' => '1',
-                    'message' => '^^[User not authenticated]^^',
-                    'url' => Render::getLink(Render::$urlParam[0] . '/login'),
-                ];
-
-                if (Render::isAjax()) {
-                    echo json_encode($data);
-                } else {
-                    header("Location: {$data['url']}\r\n");
-                }
-
-                exit;
-            }
-        }
-
-        return $this->getUser();
     }
 
     /**
@@ -264,6 +185,18 @@ class Auth
     }
 
     /**
+     * Get the registered user_id
+     *
+     * @return integer
+     */
+    private function getUser()
+    {
+        $jwt = new Jwt;
+
+        return isset($jwt->user_id) ? $jwt->user_id : null;
+    }
+
+    /**
      * Perform authentication
      *
      * @param array $row
@@ -306,7 +239,7 @@ class Auth
         $token = $jwt->set($data)->save();
 
         // Access log
-        if (defined('BOSSANOVA_LOG_USER_ACCESS')) {
+        if (defined('BOSSANOVA_LOG_USER_ACCESS') && BOSSANOVA_LOG_USER_ACCESS) {
             $this->accessLog($row);
         }
 
@@ -335,8 +268,7 @@ class Auth
         $password = $this->getPost('password');
 
         // Load user information
-        $user = new \models\Users();
-        $row = $user->getUserByIdent($username);
+        $row = $this->user->getUserByIdent($username);
 
         if (! isset($row['user_id']) || ! $row['user_id'] || ! $row['user_status']) {
             // Current message
@@ -364,17 +296,17 @@ class Auth
                     $token = $this->authenticate($row);
 
                     // Make sure this is blank
-                    $user->user_hash = '';
-                    $user->user_recovery = '';
-                    $user->user_recovery_date = '';
+                    $this->user->user_hash = '';
+                    $this->user->user_recovery = '';
+                    $this->user->user_recovery_date = '';
 
                     // Mobile device token
                     if (isset($this->getRequest['token']) && $this->getRequest['token']) {
-                        $user->user_token = $this->getRequest['token'];
+                        $this->user->user_token = $this->getRequest['token'];
                     }
 
                     // Update user information
-                    $user->save();
+                    $this->user->save();
 
                     // TODO: Implement referer
                     $url = Render::getLink($module);
@@ -386,20 +318,20 @@ class Auth
                         'url' => $url,
                     ];
 
-                // This is the first access, or your password has expired
+                    // This is the first access, or your password has expired
                 } else if ($row['user_status'] == 2 || $row['user_status'] == 3) {
                     // Update hash
-                    $user->user_hash = hash('sha512', uniqid(mt_rand(), true));
-                    $user->save();
+                    $this->user->user_hash = hash('sha512', uniqid(mt_rand(), true));
+                    $this->user->save();
 
                     // Link
-                    $url = Render::getLink($module . '/login?h=' . $user->user_hash);
+                    $url = Render::getLink($module . '/login?h=' . $this->user->user_hash);
 
                     $data = [
                         'success' => 1,
                         'message' => $row['user_status'] == 2 ? '^^[This is your first access, please select a new password]^^' : '^^[Your password is expired. Please pick a new one]^^',
                         'action' => 'resetPassword',
-                        'hash' => $user->user_hash,
+                        'hash' => $this->user->user_hash,
                     ];
                 }
             } else {
@@ -428,8 +360,7 @@ class Auth
         $username = strtolower($this->getPost('username'));
 
         // Load user information
-        $user = new \models\Users();
-        $row = $user->getUserByIdent($username);
+        $row = $this->user->getUserByIdent($username);
 
         if (! isset($row['user_id'])) {
             // Check if the user is found
@@ -450,15 +381,15 @@ class Auth
                 $row['url'] = Render::getLink(Render::$urlParam[0] . '/login');
 
                 // Save hash in the user table, is is a one time code to access the system
-                $user->user_hash = $row['user_hash'];
-                $user->user_recovery = 1;
-                $user->user_recovery_date = 'NOW()';
-                $user->save();
+                $this->user->user_hash = $row['user_hash'];
+                $this->user->user_recovery = 1;
+                $this->user->user_recovery_date = 'NOW()';
+                $this->user->save();
 
                 // Send email with instructions
                 $filename = defined('EMAIL_RECOVERY_FILE')
-                    && file_exists(EMAIL_RECOVERY_FILE) ?
-                        EMAIL_RECOVERY_FILE : 'resources/texts/recover.txt';
+                && file_exists(EMAIL_RECOVERY_FILE) ?
+                    EMAIL_RECOVERY_FILE : 'resources/texts/recover.txt';
 
                 // Send instructions email to the user
                 try {
@@ -545,8 +476,7 @@ class Auth
         $module = Render::$urlParam[0];
 
         // Load user information
-        $user = new \models\Users();
-        $row = $user->getUserByHash($hash);
+        $row = $this->user->getUserByHash($hash);
 
         // Hash found
         if (isset($row['user_id']) && $row['user_hash'] == $hash) {
@@ -557,7 +487,7 @@ class Auth
                     'success' => 1,
                     'message' => '^^[This is your first access and need to choose a new password]^^',
                     'action' => 'resetPassword',
-                    'hash' => $user->user_hash,
+                    'hash' => $this->user->user_hash,
                 ];
             } else if ($row['user_status'] == 3) {
                 // User password is expired
@@ -565,7 +495,7 @@ class Auth
                     'success' => 1,
                     'message' => '^^[Your password has expired. For security reasons, please choose a new password]^^',
                     'action' => 'resetPassword',
-                    'hash' => $user->user_hash,
+                    'hash' => $this->user->user_hash,
                 ];
             } else if ($row['user_status'] == 1) {
                 // This block handle password recovery
@@ -575,7 +505,7 @@ class Auth
                         'success' => 1,
                         'message' => '^^[Please choose a new password]^^',
                         'action' => 'resetPassword',
-                        'hash' => $user->user_hash,
+                        'hash' => $this->user->user_hash,
                     ];
                 } else if ($row['user_recovery'] == 2) {
                     // Message
@@ -584,11 +514,11 @@ class Auth
                     $this->authenticate($row);
 
                     // Force login by hash for specific use
-                    $user->user_hash = '';
-                    $user->user_recovery = '';
-                    $user->user_recovery_date = '';
-                    $user->user_hash = '';
-                    $user->save();
+                    $this->user->user_hash = '';
+                    $this->user->user_recovery = '';
+                    $this->user->user_recovery_date = '';
+                    $this->user->user_hash = '';
+                    $this->user->save();
 
                     $data = [
                         'success' => 1,
@@ -619,6 +549,7 @@ class Auth
             } else {
                 $data = [
                     'error' => 1,
+                    'message' => '^^[This code is not valid or has been expired]^^',
                     'url' => Render::getLink($module . '/login'),
                 ];
             }
@@ -637,8 +568,7 @@ class Auth
         $hash = preg_replace("/[^a-zA-Z0-9]/", "", $hash);
 
         // Load user information
-        $user = new \models\Users();
-        $row = $user->getUserByHash($hash);
+        $row = $this->user->getUserByHash($hash);
 
         // Hash found
         if (isset($row['user_id']) && $row['user_hash'] == $hash) {
@@ -671,13 +601,13 @@ class Auth
                             $salt = hash('sha512', uniqid(mt_rand(1, mt_getrandmax()), true));
                             $pass = hash('sha512', $password . $salt);
                             // Update user information
-                            $user->user_salt = $salt;
-                            $user->user_password = $pass;
-                            $user->user_hash = '';
-                            $user->user_recovery = '';
-                            $user->user_recovery_date = '';
-                            $user->user_status = 1;
-                            $user->save();
+                            $this->user->user_salt = $salt;
+                            $this->user->user_password = $pass;
+                            $this->user->user_hash = '';
+                            $this->user->user_recovery = '';
+                            $this->user->user_recovery_date = '';
+                            $this->user->user_status = 1;
+                            $this->user->save();
 
                             // Feedback
                             $data = [
@@ -717,8 +647,7 @@ class Auth
             "access_status" => $status
         ];
 
-        $user = new \models\Users();
-        $accessId = $user->setLog($column);
+        $accessId = $this->user->setLog($column);
 
         return $accessId;
     }
@@ -810,19 +739,45 @@ class Auth
                 // User id found
                 if (isset($result['sub']) && $result['sub']) {
                     // Locate user
-                    $user = new \models\Users();
-                    $row = $user->getUserByGoogleId($result['sub']);
+                    $row = $this->user->getUserByGoogleId($result['sub']);
 
                     // User not found by google id
                     if (! isset($row['user_id'])) {
                         // Check if this user exists in the database by email
                         if (isset($result['email']) && $result['email']) {
                             // Try to find the user by email
-                            $row = $user->getUserByEmail($result['email']);
+                            $row = $this->user->getUserByEmail($result['email']);
 
-                            if (isset($row['user_id'])) {
-                                // The account is linked now
-                                $user->google_id = $result['sub'];
+                            if (isset($row['user_id']) && $row['user_id']) {
+                                if (isset($row['google_id']) && $row['google_id']) {
+                                    // An user with
+                                    return [
+                                        'error' => 1,
+                                        'message' => '^^[This account already exists bound to another account.]^^',
+                                    ];
+                                } else {
+                                    if ($password = $this->getPost('password')) {
+                                        // Posted password
+                                        $password = hash('sha512', $password . $row['user_salt']);
+                                        // Check to see if password matches
+                                        if ($password == $row['user_password'] && strtolower($row['user_email']) == strtolower($result['email']) && $row['user_status'] == 1) {
+                                            $this->user->google_id = $result['sub'];
+                                        } else {
+                                            // There are one account with this email. Ask the user what he wants to do.
+                                            return [
+                                                'error' => 1,
+                                                'message' => '^^[Invalid password]^^',
+                                            ];
+                                        }
+                                    } else {
+                                        // There are one account with this email. Ask the user what he wants to do.
+                                        return [
+                                            'success' => 1,
+                                            'message' => '^^[There are an account with your email. Would you like to bound both accounts? Please enter your account password.]^^',
+                                            'action' => 'bindSocialAccount',
+                                        ];
+                                    }
+                                }
                             }
                         }
                     }
@@ -847,9 +802,11 @@ class Auth
                                 'user_status' => 1,
                             ];
 
-                            if ($row['user_id'] = $user->column($row)->insert()) {
+                            if ($id = $this->user->column($row)->insert()) {
                                 // Load user data as object
-                                $user->get($row['user_id']);
+                                $this->user->get($id);
+                                // User ID
+                                $row['user_id'] = (int)$id;
                             }
                         }
                     }
@@ -862,24 +819,28 @@ class Auth
                         $this->authenticate($row);
 
                         // Force login by hash for specific use
-                        $user->user_hash = '';
-                        $user->user_recovery = '';
-                        $user->user_recovery_date = '';
-                        $user->user_hash = '';
+                        $this->user->user_hash = '';
+                        $this->user->user_recovery = '';
+                        $this->user->user_recovery_date = '';
+                        $this->user->user_hash = '';
 
                         // Mobile device token
                         if ($this->getRequest('token')) {
-                            $user->user_token = $this->getRequest('token');
+                            $this->user->user_token = $this->getRequest('token');
                         }
 
                         // Update user information
-                        $user->save();
+                        $this->user->save();
 
                         $data = [
                             'success' => 1,
                             'message' => $this->message,
                             'url' => Render::getLink(Render::$urlParam[0]),
                         ];
+
+                        if (isset($id) && $id) {
+                            $data['id'] = $id;
+                        }
                     } else {
                         $data = [
                             'error' => 1,
@@ -931,19 +892,45 @@ class Auth
                 // User id found
                 if ($result['id']) {
                     // Locate user
-                    $user = new \models\Users();
-                    $row = $user->getUserByFacebookId($result['id']);
+                    $row = $this->user->getUserByFacebookId($result['id']);
 
-                    // User not found by facebook id
+                    // User not found by google id
                     if (! isset($row['user_id'])) {
                         // Check if this user exists in the database by email
                         if (isset($result['email']) && $result['email']) {
                             // Try to find the user by email
-                            $row = $user->getUserByEmail($result['email']);
+                            $row = $this->user->getUserByEmail($result['email']);
 
-                            if (isset($row['user_id'])) {
-                                // The account is linked now
-                                $user->facebook_id = $result['id'];
+                            if (isset($row['user_id']) && $row['user_id']) {
+                                if (isset($row['facebook_id']) && $row['facebook_id']) {
+                                    // An user with
+                                    return [
+                                        'error' => 1,
+                                        'message' => '^^[This account already exists bound to another account.]^^',
+                                    ];
+                                } else {
+                                    if ($password = $this->getPost('password')) {
+                                        // Posted password
+                                        $password = hash('sha512', $password . $row['user_salt']);
+                                        // Check to see if password matches
+                                        if ($password == $row['user_password'] && strtolower($row['user_email']) == strtolower($result['email']) && $row['user_status'] == 1) {
+                                            $this->user->facebook_id = $result['id'];
+                                        } else {
+                                            // There are one account with this email. Ask the user what he wants to do.
+                                            return [
+                                                'error' => 1,
+                                                'message' => '^^[Invalid password]^^',
+                                            ];
+                                        }
+                                    } else {
+                                        // There are one account with this email. Ask the user what he wants to do.
+                                        return [
+                                            'success' => 1,
+                                            'message' => '^^[There are an account with your email. Would you like to bound both accounts? Please enter your account password.]^^',
+                                            'action' => 'bindSocialAccount',
+                                        ];
+                                    }
+                                }
                             }
                         }
                     }
@@ -968,9 +955,11 @@ class Auth
                                 'user_status' => 1,
                             ];
 
-                            if ($row['user_id'] = $user->column($row)->insert()) {
+                            if ($id = $this->user->column($row)->insert()) {
                                 // Load user data as object
-                                $user->get($row['user_id']);
+                                $this->user->get($id);
+                                // User ID
+                                $row['user_id'] = (int)$id;
                             }
                         }
                     }
@@ -983,24 +972,28 @@ class Auth
                         $this->authenticate($row);
 
                         // Force login by hash for specific use
-                        $user->user_hash = '';
-                        $user->user_recovery = '';
-                        $user->user_recovery_date = '';
-                        $user->user_hash = '';
+                        $this->user->user_hash = '';
+                        $this->user->user_recovery = '';
+                        $this->user->user_recovery_date = '';
+                        $this->user->user_hash = '';
 
                         // Mobile device token
                         if ($this->getRequest('token')) {
-                            $user->user_token = $this->getRequest('token');
+                            $this->user->user_token = $this->getRequest('token');
                         }
 
                         // Update user information
-                        $user->save();
+                        $this->user->save();
 
                         $data = [
                             'success' => 1,
                             'message' => $this->message,
                             'url' => Render::getLink(Render::$urlParam[0]),
                         ];
+
+                        if (isset($id) && $id) {
+                            $data['id'] = $id;
+                        }
                     } else {
                         $data = [
                             'error' => 1,
@@ -1045,134 +1038,5 @@ class Auth
         $_SESSION['bossanovaValidation'] = $validation;
 
         return true;
-    }
-
-    /**
-     * Get Jwt and validate
-     * @return $jwt
-     */
-    private function jwt()
-    {
-        // Get JWT
-        $jwt = new Jwt();
-
-        // Redis
-        if (isset($jwt->hash) && $jwt->hash) {
-            if (class_exists('Redis')) {
-                if ($redis = Redis::getInstance()) {
-                    // Get signature
-                    $hash = $jwt->sign($redis->get('hash' . $jwt->user_id));
-
-                    if ($hash !== $jwt->hash) {
-                        return null;
-                    }
-                }
-            }
-        }
-
-        return $jwt;
-    }
-
-    /**
-     * Get the registered user_id
-     *
-     * @return integer
-     */
-    public function getUser()
-    {
-        $jwt = $this->jwt();
-
-        return isset($jwt->user_id) ? $jwt->user_id : null;
-    }
-
-    /**
-     * Get the registered parent_id
-     *
-     * @return integer
-     */
-    public function getParentUser()
-    {
-        $jwt = $this->jwt();
-
-        return isset($jwt->parent_id) ? $jwt->parent_id : null;
-    }
-
-    /**
-     * Get the registered permission_id
-     *
-     * @return integer
-     */
-    public function getGroup()
-    {
-        $jwt = $this->jwt();
-
-        return isset($jwt->permission_id) ? $jwt->permission_id : null;
-    }
-
-    /**
-     * Get the registered scope
-     *
-     * @return array
-     */
-    public function getPermissions()
-    {
-        $jwt = $this->jwt();
-
-        return isset($jwt->permissions) ? $jwt->permissions : null;
-    }
-
-    /**
-     * Alias for isAuthorized
-     */
-    public function getPermission($route)
-    {
-        return $this->isAuthorized($route);
-    }
-
-    /**
-     * Check if is a user is authorized based on the route
-     */
-    public function isAuthorized($route)
-    {
-        $jwt = $this->jwt();
-
-        if (isset($jwt->permissions) && $jwt->permissions) {
-            return property_exists($jwt->permissions, $route) ? true : false;
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * Get the registered locale
-     *
-     * @return integer
-     */
-    public function getLocale()
-    {
-        $jwt = $this->jwt();
-
-        return isset($jwt->locale) ? $jwt->locale : null;
-    }
-
-    /**
-     * Get the registered locale
-     *
-     * @return integer
-     */
-    public function setLocale($locale)
-    {
-        $jwt = $this->jwt();
-
-        if (isset($jwt->user_id) && $jwt->user_id) {
-            $jwt->locale = $locale;
-            $jwt->save();
-
-            // Save the information in the database
-            $user = new \models\Users;
-            $user->get($jwt->user_id);
-            $user->user_locale = $locale;
-            $user->save();
-        }
     }
 }

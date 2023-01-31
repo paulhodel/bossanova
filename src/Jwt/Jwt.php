@@ -82,16 +82,25 @@ class Jwt extends \stdClass
         // Token
         return ($header . '.' . $data . '.' .  $signature);
     }
-
-    public function getToken()
+    
+    public function createToken($data)
     {
-        // Verify
-        if ($this->isValid()) {
-            // Token
-            $webToken = $this->getPostedToken();
-            $webToken = explode('.', $webToken);
+        return $this->setToken($data);
+    }
 
-            return json_decode($this->base64_decode($webToken[1]));
+    public function getToken($asString=null)
+    {
+        if ($asString) {
+            return $this->getPostedToken();
+        } else {
+            // Verify
+            if ($this->isValid()) {
+                // Token
+                $webToken = $this->getPostedToken();
+                $webToken = explode('.', $webToken);
+
+                return json_decode($this->base64_decode($webToken[1]));
+            }
         }
 
         return false;
@@ -132,6 +141,11 @@ class Jwt extends \stdClass
         header("Set-Cookie: {$this->key}={$token}; path=/; SameSite=Lax; expires={$expires};");
 
         return $token;
+    }
+
+    final public function destroy()
+    {
+        header("Set-Cookie: {$this->key}=null; path=/; SameSite=Lax; expires=0;");
     }
 
     final public function sign($str)

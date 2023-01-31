@@ -189,7 +189,7 @@ class Auth
      *
      * @return integer
      */
-    private function getUser()
+    public function getUser()
     {
         $jwt = new Jwt;
 

@@ -86,7 +86,7 @@ class Module
 
             // Before Process POST
             if (count($post) && is_callable(array($service, 'processPost'))) {
-                $post = $service->processPost($this->getPost(), $id);
+                $post = $service->processPost($post, $id);
             }
 
             if (! $id) {
@@ -100,8 +100,12 @@ class Module
             }
 
             // After Process POST
+            $post = $this->getPost();
             if (count($post) && is_callable(array($service, 'processAfterPost'))) {
-                $post = $service->processAfterPost($this->getPost(), $id, $data);
+                $ret = $service->processAfterPost($post, $id, $data);
+                if ($ret) {
+                    $data = $ret;
+                }
             }
         } else if ($this->getRequestMethod() == "DELETE") {
             $data = $service->delete($id);

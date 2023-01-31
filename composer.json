@@ -9,12 +9,7 @@
     "homepage" : "https://github.com/paulhodel/bossanova",
     "license" : "MIT",
     "type" : "project",
-    "authors" : [{
-            "name" : "Paul Hodel",
-            "email" : "paul.hodel@gmail.com"
-        }
-    ],
-   "autoload": {
+    "autoload": {
         "files" : [
             "autoload.php"
         ],
@@ -22,6 +17,5 @@
             "bossanova\\": "src/"
         }
     },
-    "autoload-dev" : {
-    }
+    "version": "5.6.0"
 }

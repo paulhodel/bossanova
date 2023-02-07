@@ -301,8 +301,8 @@ class Auth
                     $this->user->user_recovery_date = '';
 
                     // Mobile device token
-                    if (isset($this->getRequest['token']) && $this->getRequest['token']) {
-                        $this->user->user_token = $this->getRequest['token'];
+                    if ($request = $this->getRequest('token')) {
+                        $this->user->user_token = $request;
                     }
 
                     // Update user information

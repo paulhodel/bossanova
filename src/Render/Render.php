@@ -107,9 +107,6 @@ class Render
 
             // Escape the request
             $str = trim($requestUri[0]);
-            if (get_magic_quotes_gpc()) {
-                $str = stripslashes($str);
-            }
             $str = htmlentities($str);
             $search = array("\\", "\0", "\n", "\r", "\x1a", "'", '"');
             $replace = array("", "", "", "", "", "", "");

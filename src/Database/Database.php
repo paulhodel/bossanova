@@ -90,7 +90,7 @@ class Database
     {
         if (!isset(self::$instance[$id]) || !self::$instance[$id] || isset($config)) {
             try {
-                if ($config[0] && $config[1] && $config[2] && $config[3] && $config[4]) {
+                if ($config && $config[0] && $config[1] && $config[2] && $config[3] && $config[4]) {
                     // Create a instance of the database connection
                     self::$instance[$id] = new self;
 
@@ -192,7 +192,7 @@ class Database
                 $data = array();
 
                 foreach ($val as $k => $v) {
-                    if (trim($v) === "" || trim($v) === "null") {
+                    if ($v === null || trim($v) === "" || trim($v) === "null") {
                         $data[$k] = "null";
                     } else {
                         if (is_numeric($v)) {
@@ -206,7 +206,7 @@ class Database
                 // Final array with complete data
                 $val = $data;
             }
-        } elseif (trim($val) === "" || trim($val) === "null") {
+        } elseif ($val === null || trim($val) === "" || trim($val) === "null") {
             $val = "null";
         } else {
             if (! is_numeric($val)) {

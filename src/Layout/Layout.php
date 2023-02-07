@@ -77,10 +77,10 @@ class Layout
                 $found = 0;
 
                 // Merging HTML
-                $merged = $html{0};
+                $merged = $html[0];
 
                 for ($i = 1; $i < strlen($html); $i ++) {
-                    $merged .= $html{$i};
+                    $merged .= $html[$i];
 
                     // Inside a tag
                     if ($tag > 0) {
@@ -88,30 +88,30 @@ class Layout
                         if ($tag > 1) {
                             if ($tag == 2) {
                                 // Found [=]
-                                if ($test{$i} == chr(61)) {
+                                if ($test[$i] == chr(61)) {
                                     $tag = 3;
                                 } else {
                                     // [space], ["], [']
-                                    if ($test{$i} != chr(32) && $test{$i} != chr(34) && $test{$i} != chr(39)) {
+                                    if ($test[$i] != chr(32) && $test[$i] != chr(34) && $test[$i] != chr(39)) {
                                         $tag = 1;
                                     }
                                 }
                             } else {
                                 // Separate any valid id character
-                                if ((ord($test{$i}) >= 0x30 && ord($test{$i}) <= 0x39) ||
-                                    (ord($test{$i}) >= 0x61 && ord($test{$i}) <= 0x7A) ||
-                                    (ord($test{$i}) == 95) ||
-                                    (ord($test{$i}) == 45)) {
-                                    $id .= $test{$i};
+                                if ((ord($test[$i]) >= 0x30 && ord($test[$i]) <= 0x39) ||
+                                    (ord($test[$i]) >= 0x61 && ord($test[$i]) <= 0x7A) ||
+                                    (ord($test[$i]) == 95) ||
+                                    (ord($test[$i]) == 45)) {
+                                    $id .= $test[$i];
                                 }
 
                                 // Checking end of the id string
                                 if ($id) {
                                     // Check for an string to be closed in the next character [>], [space], ["], [']
-                                    if ($test{$i + 1} == chr(62) ||
-                                        $test{$i + 1} == chr(32) ||
-                                        $test{$i + 1} == chr(34) ||
-                                        $test{$i + 1} == chr(39)) {
+                                    if ($test[$i + 1] == chr(62) ||
+                                        $test[$i + 1] == chr(32) ||
+                                        $test[$i + 1] == chr(34) ||
+                                        $test[$i + 1] == chr(39)) {
                                         // Id found mark flag
                                         if (isset($contents[$id])) {
                                             $found = $contents[$id];
@@ -122,19 +122,19 @@ class Layout
                                     }
                                 }
                             }
-                        } elseif ($test{$i - 1} == chr(105) && $test{$i} == chr(100)) {
+                        } elseif ($test[$i - 1] == chr(105) && $test[$i] == chr(100)) {
                             // id found start testing
                             $tag = 2;
                         }
                     }
 
                     // Tag found <
-                    if ($test{$i - 1} == chr(60)) {
+                    if ($test[$i - 1] == chr(60)) {
                         $tag = 1;
                     }
 
                     // End of a tag >
-                    if ($test{$i} == chr(62)) {
+                    if ($test[$i] == chr(62)) {
                         $id = '';
                         $tag = 0;
 

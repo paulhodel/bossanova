@@ -56,10 +56,12 @@ class Module
         ]);
 
         // Redis provider
-        $this->redis = Redis::getInstance([
-            REDIS_CONFIG_HOST,
-            REDIS_CONFIG_PORT
-        ]);
+        if (class_exists('Redis')) {
+            $this->redis = Redis::getInstance([
+                REDIS_CONFIG_HOST,
+                REDIS_CONFIG_PORT
+            ]);
+        }
 
         // Auth
         $this->auth = new Auth();

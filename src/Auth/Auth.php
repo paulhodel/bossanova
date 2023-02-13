@@ -8,12 +8,15 @@ use bossanova\Mail\Mail;
 use bossanova\Common\Wget;
 use bossanova\Common\Post;
 use bossanova\Common\Request;
+use bossanova\Common\Ident;
 use bossanova\Redis\Redis;
 use bossanova\Jwt\Jwt;
 
 class Auth
 {
-    use Wget, Post, Request;
+    use Wget, Post, Request, Ident;
+
+    public $user;
 
     public function __construct(Model $users = NULL)
     {
@@ -182,18 +185,6 @@ class Auth
         }
 
         return isset($restricted) ? $restricted : false;
-    }
-
-    /**
-     * Get the registered user_id
-     *
-     * @return integer
-     */
-    public function getUser()
-    {
-        $jwt = new Jwt;
-
-        return isset($jwt->user_id) ? $jwt->user_id : null;
     }
 
     /**

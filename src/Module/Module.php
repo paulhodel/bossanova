@@ -21,13 +21,6 @@ class Module
     use Configuration, Ident, Params, Request, Post;
 
     /**
-     * Authentication
-     *
-     * @var $auth
-     */
-    public $auth;
-
-    /**
      * Global sendmail instance
      *
      * @var $mail
@@ -62,9 +55,6 @@ class Module
                 REDIS_CONFIG_PORT
             ]);
         }
-
-        // Auth
-        $this->auth = new Auth();
     }
 
     /**
@@ -237,19 +227,27 @@ class Module
      */
     public function login()
     {
-        $data = $this->auth->login();
+        if (class_exists('\services\Auth')) {
+            $auth = new \services\Auth;
+            $data = $auth->login();
 
-        // Deal with the authetantion service return
-        if (Render::isAjax()) {
-            return $data;
-        } else {
-            if (isset($data['url'])) {
-                $this->redirect($data['url'], $data);
+            // Deal with the authetantion service return
+            if (Render::isAjax()) {
+                return $data;
             } else {
-                if ($data) {
-                    $this->setMessage($data);
+                if (isset($data['url'])) {
+                    $this->redirect($data['url'], $data);
+                } else {
+                    if ($data) {
+                        $this->setMessage($data);
+                    }
                 }
             }
+        } else {
+            return [
+                'error' => 1,
+                'message' => 'No \services\auth handler found',
+            ];
         }
     }
 

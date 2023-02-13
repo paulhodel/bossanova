@@ -23,9 +23,6 @@ class View
         if ($view) {
             $this->view = $view;
         }
-
-        // Auth
-        $this->auth = new Auth();
     }
 
     public function render($viewPath = null)

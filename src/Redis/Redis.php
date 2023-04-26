@@ -35,7 +35,7 @@ class Redis
      */
     public static function getInstance($config = null)
     {
-        if (! self::$connection && $config[0] && $config[1]) {
+        if (! self::$connection && $config && $config[0] && $config[1]) {
             try {
                 self::$connection = new \Redis();
                 self::$connection->connect($config[0], $config[1]);

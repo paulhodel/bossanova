@@ -153,18 +153,6 @@ class Services
     }
 
     /**
-     * Grid
-     *
-     * @return array $data : grid data
-     */
-    public function grid(Grid $gridAdapter)
-    {
-        $data = $this->model->grid();
-
-        return $gridAdapter->get($data);
-    }
-
-    /**
      * Default sendmail function, used by the modules to send used email
      *
      * @return void

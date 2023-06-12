@@ -49,7 +49,7 @@ class Module
         ]);
 
         // Redis provider
-        if (class_exists('Redis')) {
+        if (class_exists('Redis') && defined('REDIS_CONFIG_HOST') && REDIS_CONFIG_HOST) {
             $this->redis = Redis::getInstance([
                 REDIS_CONFIG_HOST,
                 REDIS_CONFIG_PORT

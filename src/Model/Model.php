@@ -3,6 +3,7 @@
 namespace bossanova\Model;
 
 use bossanova\Database\Database;
+use bossanova\Model\ModelException;
 use bossanova\Redis\Redis;
 
 class Model extends \stdClass
@@ -437,12 +438,11 @@ class Model extends \stdClass
      */
     protected function getTableInfo($tableName)
     {
-        $row = $this->database->getTableInfo($tableName);
-
-        $column_name = isset($row['Column_name']) ? $row['Column_name'] : $row['column_name'];
-        $row['primaryKey'] = $column_name;
-        $row['sequence'] = str_replace(array("nextval","regclass","(",")","::","'"), "", $column_name);
-
+        if ($row = $this->database->getTableInfo($tableName)) {
+            $column_name = isset($row['Column_name']) ? $row['Column_name'] : $row['column_name'];
+            $row['primaryKey'] = $column_name;
+            $row['sequence'] = str_replace(array("nextval","regclass","(",")","::","'"), "", $column_name);
+        }
         return $row;
     }
 

@@ -88,7 +88,7 @@ Trait Ident
     {
         $jwt = $this->jwt();
 
-        return isset($jwt->permissions) ? $jwt->permissions : null;
+        return isset($jwt->scope) ? $jwt->scope : null;
     }
 
     /**
@@ -98,8 +98,8 @@ Trait Ident
     {
         $jwt = $this->jwt();
 
-        if (isset($jwt->permissions) && $jwt->permissions) {
-            return property_exists($jwt->permissions, $route) ? true : false;
+        if (isset($jwt->scope) && $jwt->scope) {
+            return property_exists($jwt->scope, $route) ? true : false;
         } else {
             return false;
         }

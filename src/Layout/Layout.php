@@ -62,7 +62,7 @@ class Layout
                 // Inject message to the frontend
                 $html .= "<script>\n";
                 $html .= "var bossanova_message = {$message}\n";
-                $html .= "if (jSuites) { jSuites.notification(bossanova_message); }\n";
+                $html .= "if (typeof(jSuites) !== 'undefined') { jSuites.notification(bossanova_message); }\n";
                 $html .= "</script>\n";
                 $html .= "</html>";
             }

@@ -476,8 +476,6 @@ class Model extends \stdClass
                     'sequence' => $info['sequence'],
                     'recordId' => 0
                 ];
-            } else {
-                throw new ModelException("^^[Table could not be found.]^^");
             }
         } catch (ModelException $e) {
             echo $e;

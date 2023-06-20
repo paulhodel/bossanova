@@ -169,6 +169,14 @@ Trait Ident
             }
         }
 
+        if (isset($_SESSION)) {
+            // Removing session
+            $_SESSION = [];
+            // Destroy session
+            session_destroy();
+            session_commit();
+        }
+
         // Destroy cookie
         $jwt->destroy();
 

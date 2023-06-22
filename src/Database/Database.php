@@ -195,10 +195,12 @@ class Database
                     if ($v === null || trim($v) === "" || trim($v) === "null") {
                         $data[$k] = "null";
                     } else {
-                        if (is_numeric($v)) {
+                        if (strtoupper($v) == 'NOW()') {
                             $data[$k] = $v;
-                        } else {
+                        } elseif (gettype($v) == "string") {
                             $data[$k] = "'". str_replace("'", "''", $v) . "'";
+                        } else {
+                            $data[$k] = str_replace("'", "", $v);
                         }
                     }
                 }
@@ -208,9 +210,13 @@ class Database
             }
         } elseif ($val === null || trim($val) === "" || trim($val) === "null") {
             $val = "null";
+        } elseif (strtoupper(trim($val)) == 'NOW()') {
+            $val = "NOW()";
         } else {
-            if (! is_numeric($val)) {
+            if (gettype($val) == "string") {
                 $val = "'". str_replace("'", "''", $val) . "'";
+            } else {
+                $val = str_replace("'", "", $val);
             }
         }
 

@@ -129,23 +129,33 @@ class Jwt extends \stdClass
         return $this;
     }
 
-    final public function save()
+    final public function save($expires=0)
     {
-        // Expires
-        $expires = time() + 86400 * 3;
-
         // Create token
         $token = $this->setToken($this);
 
-        // Default for 3 days
-        header("Set-Cookie: {$this->key}={$token}; path=/; SameSite=Lax; expires={$expires};");
+        setcookie($this->key, $token, [
+            'expires' => $expires,
+            'path' => '/',
+            'domain' => '',
+            'secure' => true,
+            'httponly' => false,
+            'samesite' => 'Lax'
+        ]);
 
         return $token;
     }
 
     final public function destroy()
     {
-        header("Set-Cookie: {$this->key}=null; path=/; SameSite=Lax; expires=0;");
+        setcookie($this->key, null, [
+            'expires' => 0,
+            'path' => '/',
+            'domain' => '',
+            'secure' => true,
+            'httponly' => false,
+            'samesite' => 'Lax'
+        ]);
     }
 
     final public function sign($str)
@@ -172,6 +182,14 @@ class Jwt extends \stdClass
                 $signature = $this->sign($body);
                 // Verify
                 if ($signature === $webToken[2]) {
+                    // Check validation
+                    $tmp = json_decode($this->base64_decode($webToken[1]));
+                    // Check expiration
+                    if (isset($tmp->exp) && $tmp->exp) {
+                        if ($tmp->exp < time()) {
+                            return false;
+                        }
+                    }
                     // Valid token
                     return true;
                 }

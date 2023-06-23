@@ -774,17 +774,24 @@ class Database
         if ($debug == 1) {
             $result = $this->query['query'];
         } else {
-            $result = $this->connection->prepare($this->query['query']);
-
-            if (isset($this->query['params'])) {
-                foreach ($this->query['params'] as $k => $v) {
-                    $result->bindValue(":$k", $v);
+            try {
+                $result = $this->connection->prepare($this->query['query']);
+    
+                if (isset($this->query['params'])) {
+                    foreach ($this->query['params'] as $k => $v) {
+                        $result->bindValue(":$k", $v);
+                    }
+                }
+    
+                $i = microtime(true);
+                $result->execute();
+                $f = microtime(true);
+            } catch (\Exception $e) {
+                if ($debug == 2) {
+                    print_r($e);
                 }
             }
 
-            $i = microtime(true);
-            $result->execute();
-            $f = microtime(true);
             $row = $result->errorInfo();
 
             if ($debug == 2) {

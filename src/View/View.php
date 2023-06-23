@@ -37,4 +37,26 @@ class View
             return ob_get_clean();
         }
     }
+
+     /**
+     * This method reads and return a view content
+     *
+     * @param  string $moduleName
+     * @param  string $viewName
+     * @return string $html
+     */
+    public function loadView($viewName, $moduleName = null)
+    {
+        // Module
+        if (! $moduleName) {
+            $moduleName = $this->module;
+        }
+
+        // View full path
+        $viewPath = 'modules/' . ucfirst(strtolower($moduleName)) . '/views/' . strtolower($viewName) . '.html';
+
+        // View class
+        $v = new View($this->view);
+        return $v->render($viewPath);
+    }
 }

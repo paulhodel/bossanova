@@ -49,7 +49,7 @@ class View
     {
         // Module
         if (! $moduleName) {
-            $moduleName = $this->module;
+            $moduleName = $this->getParam(0);
         }
 
         // View full path

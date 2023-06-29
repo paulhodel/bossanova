@@ -236,7 +236,7 @@ class Module
                 return $data;
             } else {
                 if (isset($data['url'])) {
-                    $this->redirect($data['url'], $data);
+                    $this->redirect($data['url']);
                 } else {
                     if ($data) {
                         $this->setMessage($data);

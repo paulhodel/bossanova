@@ -131,6 +131,11 @@ class Jwt extends \stdClass
 
     final public function save($expires=0)
     {
+        // If no definition on the cookie expiration sets for 7 days
+        if (! $expires) {
+            $expires = time() + (86400 * 7);
+        }
+
         // Create token
         $token = $this->setToken($this);
 

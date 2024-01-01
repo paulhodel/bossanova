@@ -559,8 +559,13 @@ class Render
                         }
 
                         // Place content in the correct area
-                        if (! isset( $contents[$extra_config[$k]->template_area])) {
+                        if (! isset($contents[$extra_config[$k]->template_area])) {
                             $contents[$extra_config[$k]->template_area] = '';
+                        }
+
+                        // Content
+                        if (isset($extra_config[$k]->content)) {
+                            $contents[$extra_config[$k]->template_area] .= $extra_config[$k]->content;
                         }
 
                         // If there is content returned

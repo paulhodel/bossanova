@@ -79,7 +79,7 @@ class Mail
             if (isset($files)) {
                 foreach ($files as $k => $v) {
                     if (isset($v['path']) && file_exists($v['path'])) {
-                        $this->adapter->setAttachments($v['path'], $v['name']);
+                        $this->adapter->addAttachments($v['path'], $v['name']);
                     }
                 }
             }

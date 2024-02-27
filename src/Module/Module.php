@@ -81,7 +81,7 @@ class Module
                 $post = $service->processPost($post, $id);
             }
 
-            if (! $id) {
+            if (! $id || $id === 'new') {
                 $data = $service->insert($post);
 
                 if (isset($data['id']) && $data['id']) {

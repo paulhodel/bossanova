@@ -117,6 +117,16 @@ Trait Configuration
     }
 
     /**
+     * Set link canonical
+     *
+     * @param string $value
+     */
+    public function setCanonical($data)
+    {
+        Render::$configuration['template_meta']['canonical'] = $data;
+    }
+    
+    /**
      * Set new content area
      *
      * @param string $value

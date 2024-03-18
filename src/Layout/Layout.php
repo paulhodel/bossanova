@@ -8,6 +8,7 @@ class Layout
     public $author = '';
     public $keywords = '';
     public $description = '';
+    public $canonical = '';
 
     /**
      * Loading the HTML layout including the bossanova needs (base href, and javascript in the end)
@@ -49,6 +50,9 @@ class Layout
             }
             if ($this->description) {
                 $extra .= "\n<meta itemprop='description' property='og:description' name='description' content='{$this->description}'>";
+            }
+            if ($this->canonical) {
+                $extra .= "\n<link rel='canonical' href='{$this->canonical}' />";
             }
 
             // Dynamic Tags

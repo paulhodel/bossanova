@@ -45,6 +45,7 @@ class Render
             'author' => '',
             'keywords' => '',
             'description' => '',
+            'canonical' => '',
         ],
         'module_name' => null,
         'module_controller' => null,
@@ -379,6 +380,7 @@ class Render
             $template->author = self::$configuration['template_meta']['author'];
             $template->keywords = self::$configuration['template_meta']['keywords'];
             $template->description = self::$configuration['template_meta']['description'];
+            $template->canonical = self::$configuration['template_meta']['canonical'];
 
             // Message
             if (isset($_COOKIE['bossanova_message']) && $_COOKIE['bossanova_message']) {
